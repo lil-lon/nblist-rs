@@ -64,14 +64,7 @@ struct UnitCell {
 impl UnitCell {
     fn minimum_image(&self, diff: Vector3) -> Vector3 {
         fn wrap_to_half(coord: f64, lattice: f64) -> f64 {
-            let mut c = coord;
-            while c > lattice / 2.0 {
-                c -= lattice;
-            }
-            while c < -lattice / 2.0 {
-                c += lattice;
-            }
-            c
+            (coord + lattice / 2.0).rem_euclid(lattice) - lattice / 2.0
         }
 
         Vector3 {
