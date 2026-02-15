@@ -75,6 +75,7 @@ impl UnitCell {
     }
 }
 
+// Positions are stored in Cartesian coordinates.
 #[derive(Debug, Clone)]
 struct System {
     pos: Vec<Vector3>,
@@ -87,6 +88,19 @@ impl System {
         let diff = self.pos[j] - self.pos[i];
         let wrapped = self.cell.minimum_image(diff);
         wrapped.norm()
+    }
+
+    fn build_neighbor_list(&self, cutoff: f64) -> Vec<(usize, usize)> {
+        let mut result = Vec::new();
+        let n = self.pos.len();
+        for i in 0..n {
+            for j in (i + 1)..n {
+                if self.distance(i, j) <= cutoff {
+                    result.push((i, j))
+                }
+            }
+        }
+        result
     }
 }
 
@@ -147,7 +161,7 @@ mod tests {
     fn test_vector3_add() {
         let a = Vector3::new(1.0, 2.0, 3.0);
         let b = Vector3::new(4.0, 5.0, 6.0);
-        assert_eq!(a + b, Vector3::new(5.0, 7.0, 9.0))
+        assert_eq!(a + b, Vector3::new(5.0, 7.0, 9.0));
     }
 
     #[test]
@@ -161,5 +175,73 @@ mod tests {
     fn test_vector3_mul() {
         let a = Vector3::new(1.0, 2.0, 3.0);
         assert_eq!(a * 5.5, Vector3::new(5.5, 11.0, 16.5));
+    }
+
+    #[test]
+    fn test_neighbor_list_basic() {
+        let sys = System {
+            pos: vec![
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(2.0, 0.0, 0.0),
+                Vector3::new(5.0, 5.0, 5.0),
+                Vector3::new(8.0, 0.0, 0.0),
+            ],
+            cell: UnitCell {
+                a: 10.0,
+                b: 10.0,
+                c: 10.0,
+            },
+        };
+        let result = sys.build_neighbor_list(3.0);
+        assert_eq!(result, vec![(0, 1), (0, 3)]);
+    }
+
+    #[test]
+    fn test_neighbor_list_all_neighbors() {
+        let sys = System {
+            pos: vec![
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::new(0.0, 1.0, 0.0),
+            ],
+            cell: UnitCell {
+                a: 10.0,
+                b: 10.0,
+                c: 10.0,
+            },
+        };
+        let result = sys.build_neighbor_list(5.0);
+        assert_eq!(result, vec![(0, 1), (0, 2), (1, 2)]);
+    }
+
+    #[test]
+    fn test_neighbor_list_no_neighbors() {
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(5.0, 5.0, 5.0)],
+            cell: UnitCell {
+                a: 10.0,
+                b: 10.0,
+                c: 10.0,
+            },
+        };
+        let result = sys.build_neighbor_list(1.0);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_neighbor_list_pbc_corner() {
+        // Atoms at opposite corners of the cell, close via PBC
+        // A(0.5, 0.5, 0.5) B(9.5, 9.5, 9.5)
+        // diff = (9, 9, 9) → wrap → (-1, -1, -1) → dist = sqrt(3) ≈ 1.73
+        let sys = System {
+            pos: vec![Vector3::new(0.5, 0.5, 0.5), Vector3::new(9.5, 9.5, 9.5)],
+            cell: UnitCell {
+                a: 10.0,
+                b: 10.0,
+                c: 10.0,
+            },
+        };
+        let result = sys.build_neighbor_list(2.0);
+        assert_eq!(result, vec![(0, 1)]);
     }
 }

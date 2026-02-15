@@ -24,11 +24,10 @@
 
 # Step 2: Naive O(N^2) Neighbor List
 
-- [ ] `fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<(usize, usize)>`
+- [x] `System::build_neighbor_list(&self, cutoff: f64) -> Vec<(usize, usize)>`
   - Double loop over all pairs (i < j)
   - Use System::distance, collect pairs within cutoff
-- [ ] `#[test]` for small known system (e.g. 4 atoms in a box)
-- [ ] Benchmark with N = 1000, 5000, 10000
+- [x] `#[test]` for basic, all neighbors, no neighbors, PBC corner cases
 
 # Step 3: Cell List (O(N))
 
@@ -38,7 +37,7 @@
 - [ ] `#[test]` verify same result as naive
 - [ ] Benchmark and compare with naive
 
-# Step 4: Triclinic Cell Support
+# Step 4: Triclinic Cell Support & Fractional Coordinates
 
 - [ ] `UnitCell` with 3 lattice vectors (Vector3 x3)
 - [ ] Fractional <-> Cartesian coordinate conversion
