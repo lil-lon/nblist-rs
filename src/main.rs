@@ -147,7 +147,7 @@ mod tests {
     fn test_vector3_add() {
         let a = Vector3::new(1.0, 2.0, 3.0);
         let b = Vector3::new(4.0, 5.0, 6.0);
-        assert_eq!(a + b, Vector3::new(5.0, 7.0, 9.0))
+        assert_eq!(a + b, Vector3::new(5.0, 7.0, 9.0));
     }
 
     #[test]
