@@ -75,6 +75,7 @@ impl UnitCell {
     }
 }
 
+// Positions are stored in Cartesian coordinates.
 #[derive(Debug, Clone)]
 struct System {
     pos: Vec<Vector3>,

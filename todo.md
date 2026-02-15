@@ -37,7 +37,7 @@
 - [ ] `#[test]` verify same result as naive
 - [ ] Benchmark and compare with naive
 
-# Step 4: Triclinic Cell Support
+# Step 4: Triclinic Cell Support & Fractional Coordinates
 
 - [ ] `UnitCell` with 3 lattice vectors (Vector3 x3)
 - [ ] Fractional <-> Cartesian coordinate conversion
