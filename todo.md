@@ -1,25 +1,26 @@
 # Step 1: Data Structures & Minimum Image
 
 ## Data Structures
-- [ ] `Vector3`: struct with x, y, z (f64)
-  - [ ] `new(x, y, z) -> Self`
-  - [ ] `norm(&self) -> f64`
-  - [ ] `impl Add<Vector3>` for `+`
-  - [ ] `impl Sub<Vector3>` for `-`
-  - [ ] `impl Mul<f64>` for scalar `*`
-- [ ] `UnitCell`: struct with a, b, c (f64, orthogonal only)
-- [ ] `System`: struct with `positions: Vec<Vector3>` and `cell: UnitCell`
+- [x] `Vector3`: struct with x, y, z (f64)
+  - [x] `new(x, y, z) -> Self`
+  - [x] `norm(&self) -> f64`
+  - [x] `impl Add<Vector3>` for `+`
+  - [x] `impl Sub<Vector3>` for `-`
+  - [x] `impl Mul<f64>` for scalar `*`
+- [x] `UnitCell`: struct with a, b, c (f64, orthogonal only)
+- [x] `System`: struct with `pos: Vec<Vector3>` and `cell: UnitCell`
 
 ## Minimum Image Convention
-- [ ] `UnitCell::minimum_image(&self, diff: Vector3) -> Vector3`
-  - Apply PBC: each component wraps to [-L/2, L/2)
-- [ ] `System::distance(&self, i: usize, j: usize) -> f64`
-  - Compute `positions[j] - positions[i]`, apply minimum image, return norm
+- [x] `UnitCell::minimum_image(&self, diff: Vector3) -> Vector3`
+  - Apply PBC: each component wraps to [-L/2, L/2) (handles diff > L)
+- [x] `System::distance(&self, i: usize, j: usize) -> f64`
+  - Compute `pos[j] - pos[i]`, apply minimum image, return norm
 
 ## Validation
-- [ ] `#[test]` for Vector3 operations (add, sub, norm)
-- [ ] `#[test]` for minimum image (e.g. atoms near cell boundary)
-- [ ] `#[test]` for System::distance with PBC
+- [x] `#[test]` for Vector3 norm
+- [x] `#[test]` for minimum image
+- [x] `#[test]` for System::distance with PBC
+- [x] `#[test]` for System::distance with large diff (> L)
 
 # Step 2: Naive O(N^2) Neighbor List
 
