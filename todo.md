@@ -29,7 +29,15 @@
   - Use System::distance, collect pairs within cutoff
 - [x] `#[test]` for basic, all neighbors, no neighbors, PBC corner cases
 
-# Step 3: Cell List (O(N))
+# Step 3: Periodic Image Replication (cutoff > L/2)
+
+- [ ] When cutoff > L/2, current minimum_image only finds the nearest image
+  - An atom can appear as a neighbor through multiple periodic images
+- [ ] Replicate periodic images: replica count per axis = ceil(cutoff / L)
+- [ ] Update neighbor search to consider all necessary periodic images
+- [ ] `#[test]` verify correctness when cutoff > L/2
+
+# Step 4: Cell List (O(N))
 
 - [ ] Divide box into cells of size >= cutoff
 - [ ] Assign atoms to cells
@@ -37,14 +45,14 @@
 - [ ] `#[test]` verify same result as naive
 - [ ] Benchmark and compare with naive
 
-# Step 4: Triclinic Cell Support & Fractional Coordinates
+# Step 5: Triclinic Cell Support & Fractional Coordinates
 
 - [ ] `UnitCell` with 3 lattice vectors (Vector3 x3)
 - [ ] Fractional <-> Cartesian coordinate conversion
 - [ ] Minimum image in fractional coordinates
 - [ ] Update cell list for triclinic
 
-# Step 5: Further Optimization
+# Step 6: Further Optimization
 
 - [ ] Verlet list (skin distance, rebuild check)
 - [ ] Data layout optimization (AoS vs SoA)
