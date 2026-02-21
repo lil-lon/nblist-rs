@@ -61,20 +61,6 @@ struct UnitCell {
     c: f64,
 }
 
-impl UnitCell {
-    fn minimum_image(&self, diff: Vector3) -> Vector3 {
-        fn wrap_to_half(coord: f64, lattice: f64) -> f64 {
-            (coord + lattice / 2.0).rem_euclid(lattice) - lattice / 2.0
-        }
-
-        Vector3 {
-            x: wrap_to_half(diff.x, self.a),
-            y: wrap_to_half(diff.y, self.b),
-            z: wrap_to_half(diff.z, self.c),
-        }
-    }
-}
-
 // Positions are stored in Cartesian coordinates.
 #[derive(Debug, Clone)]
 struct System {
@@ -83,13 +69,6 @@ struct System {
 }
 
 impl System {
-    // Return the minimum image distance between atoms i and j
-    fn distance(&self, i: usize, j: usize) -> f64 {
-        let diff = self.pos[j] - self.pos[i];
-        let wrapped = self.cell.minimum_image(diff);
-        wrapped.norm()
-    }
-
     fn build_neighbor_list(&self, cutoff: f64) -> Vec<Neighbor> {
         let mut result = Vec::new();
         let a_replicas = (cutoff / self.cell.a).ceil() as i32;
@@ -145,47 +124,6 @@ mod tests {
         let vec = Vector3::new(3.0, 4.0, 5.0);
         let result = vec.norm();
         let expected = 50.0_f64.sqrt();
-        assert!((result - expected).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_minimum_image() {
-        let cell = UnitCell {
-            a: 2.0,
-            b: 4.0,
-            c: 8.0,
-        };
-        let diff = Vector3::new(0.5, -2.0, 6.0);
-        let result = cell.minimum_image(diff);
-        let expected = Vector3::new(0.5, -2.0, -2.0);
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_distance_with_pbc() {
-        let pos = vec![Vector3::new(1.0, 2.0, 4.0), Vector3::new(4.5, 3.0, 1.0)];
-        let cell = UnitCell {
-            a: 5.0,
-            b: 5.0,
-            c: 5.0,
-        };
-        let result = System { pos, cell }.distance(0, 1);
-        let expected = (1.5 * 1.5 + 1.0 * 1.0 + 2.0 * 2.0_f64).sqrt();
-        assert!((result - expected).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_distance_with_pbc_large_diff() {
-        // Atom B is far outside the cell (diff > L)
-        let pos = vec![Vector3::new(1.0, 1.0, 1.0), Vector3::new(14.0, -8.0, 22.0)];
-        let cell = UnitCell {
-            a: 5.0,
-            b: 5.0,
-            c: 5.0,
-        };
-        // diff = (13, -9, 21) → wrap → (-2, 1, 1)
-        let result = System { pos, cell }.distance(0, 1);
-        let expected = (2.0 * 2.0 + 1.0 * 1.0 + 1.0 * 1.0_f64).sqrt();
         assert!((result - expected).abs() < 1e-10);
     }
 
