@@ -61,20 +61,6 @@ struct UnitCell {
     c: f64,
 }
 
-impl UnitCell {
-    fn minimum_image(&self, diff: Vector3) -> Vector3 {
-        fn wrap_to_half(coord: f64, lattice: f64) -> f64 {
-            (coord + lattice / 2.0).rem_euclid(lattice) - lattice / 2.0
-        }
-
-        Vector3 {
-            x: wrap_to_half(diff.x, self.a),
-            y: wrap_to_half(diff.y, self.b),
-            z: wrap_to_half(diff.z, self.c),
-        }
-    }
-}
-
 // Positions are stored in Cartesian coordinates.
 #[derive(Debug, Clone)]
 struct System {
@@ -83,25 +69,63 @@ struct System {
 }
 
 impl System {
-    // Return the minimum image distance between atoms i and j
-    fn distance(&self, i: usize, j: usize) -> f64 {
-        let diff = self.pos[j] - self.pos[i];
-        let wrapped = self.cell.minimum_image(diff);
-        wrapped.norm()
-    }
-
-    fn build_neighbor_list(&self, cutoff: f64) -> Vec<(usize, usize)> {
+    fn build_neighbor_list(&self, cutoff: f64) -> Vec<Neighbor> {
         let mut result = Vec::new();
-        let n = self.pos.len();
+        let a_replicas = (cutoff / self.cell.a).ceil() as i32;
+        let b_replicas = (cutoff / self.cell.b).ceil() as i32;
+        let c_replicas = (cutoff / self.cell.c).ceil() as i32;
+        // Wrap positions into [0, L) so that ceil(cutoff / L) replicas suffice.
+        let wrapped: Vec<Vector3> = self
+            .pos
+            .iter()
+            .map(|p| {
+                Vector3::new(
+                    p.x.rem_euclid(self.cell.a),
+                    p.y.rem_euclid(self.cell.b),
+                    p.z.rem_euclid(self.cell.c),
+                )
+            })
+            .collect();
+        let n = wrapped.len();
+
         for i in 0..n {
-            for j in (i + 1)..n {
-                if self.distance(i, j) <= cutoff {
-                    result.push((i, j))
+            for j in 0..n {
+                for a_ind in -a_replicas..=a_replicas {
+                    for b_ind in -b_replicas..=b_replicas {
+                        for c_ind in -c_replicas..=c_replicas {
+                            if i == j && (a_ind, b_ind, c_ind) == (0, 0, 0) {
+                                continue;
+                            }
+                            let pos_j = wrapped[j]
+                                + Vector3::new(
+                                    a_ind as f64 * self.cell.a,
+                                    b_ind as f64 * self.cell.b,
+                                    c_ind as f64 * self.cell.c,
+                                );
+                            let distance = (pos_j - wrapped[i]).norm();
+                            if distance <= cutoff {
+                                result.push(Neighbor {
+                                    i,
+                                    j,
+                                    offset: [a_ind, b_ind, c_ind],
+                                    distance,
+                                })
+                            }
+                        }
+                    }
                 }
             }
         }
         result
     }
+}
+
+#[derive(Debug)]
+struct Neighbor {
+    i: usize,
+    j: usize,
+    offset: [i32; 3],
+    distance: f64,
 }
 
 #[cfg(test)]
@@ -113,47 +137,6 @@ mod tests {
         let vec = Vector3::new(3.0, 4.0, 5.0);
         let result = vec.norm();
         let expected = 50.0_f64.sqrt();
-        assert!((result - expected).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_minimum_image() {
-        let cell = UnitCell {
-            a: 2.0,
-            b: 4.0,
-            c: 8.0,
-        };
-        let diff = Vector3::new(0.5, -2.0, 6.0);
-        let result = cell.minimum_image(diff);
-        let expected = Vector3::new(0.5, -2.0, -2.0);
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_distance_with_pbc() {
-        let pos = vec![Vector3::new(1.0, 2.0, 4.0), Vector3::new(4.5, 3.0, 1.0)];
-        let cell = UnitCell {
-            a: 5.0,
-            b: 5.0,
-            c: 5.0,
-        };
-        let result = System { pos, cell }.distance(0, 1);
-        let expected = (1.5 * 1.5 + 1.0 * 1.0 + 2.0 * 2.0_f64).sqrt();
-        assert!((result - expected).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_distance_with_pbc_large_diff() {
-        // Atom B is far outside the cell (diff > L)
-        let pos = vec![Vector3::new(1.0, 1.0, 1.0), Vector3::new(14.0, -8.0, 22.0)];
-        let cell = UnitCell {
-            a: 5.0,
-            b: 5.0,
-            c: 5.0,
-        };
-        // diff = (13, -9, 21) → wrap → (-2, 1, 1)
-        let result = System { pos, cell }.distance(0, 1);
-        let expected = (2.0 * 2.0 + 1.0 * 1.0 + 1.0 * 1.0_f64).sqrt();
         assert!((result - expected).abs() < 1e-10);
     }
 
@@ -179,6 +162,10 @@ mod tests {
 
     #[test]
     fn test_neighbor_list_basic() {
+        // 4 atoms in a 10x10x10 box, cutoff = 3.0
+        // A(0,0,0) B(2,0,0) C(5,5,5) D(8,0,0)
+        // A-B: 2.0 ✓, B-A: 2.0 ✓
+        // A-D via PBC: 2.0 ✓, D-A via PBC: 2.0 ✓
         let sys = System {
             pos: vec![
                 Vector3::new(0.0, 0.0, 0.0),
@@ -193,25 +180,13 @@ mod tests {
             },
         };
         let result = sys.build_neighbor_list(3.0);
-        assert_eq!(result, vec![(0, 1), (0, 3)]);
-    }
-
-    #[test]
-    fn test_neighbor_list_all_neighbors() {
-        let sys = System {
-            pos: vec![
-                Vector3::new(0.0, 0.0, 0.0),
-                Vector3::new(1.0, 0.0, 0.0),
-                Vector3::new(0.0, 1.0, 0.0),
-            ],
-            cell: UnitCell {
-                a: 10.0,
-                b: 10.0,
-                c: 10.0,
-            },
-        };
-        let result = sys.build_neighbor_list(5.0);
-        assert_eq!(result, vec![(0, 1), (0, 2), (1, 2)]);
+        // Both directions: (0,1), (1,0), (0,3), (3,0)
+        let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
+        assert!(pairs.contains(&(0, 1)));
+        assert!(pairs.contains(&(1, 0)));
+        assert!(pairs.contains(&(0, 3)));
+        assert!(pairs.contains(&(3, 0)));
+        assert_eq!(result.len(), 4);
     }
 
     #[test]
@@ -219,9 +194,9 @@ mod tests {
         let sys = System {
             pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(5.0, 5.0, 5.0)],
             cell: UnitCell {
-                a: 10.0,
-                b: 10.0,
-                c: 10.0,
+                a: 20.0,
+                b: 20.0,
+                c: 20.0,
             },
         };
         let result = sys.build_neighbor_list(1.0);
@@ -230,9 +205,8 @@ mod tests {
 
     #[test]
     fn test_neighbor_list_pbc_corner() {
-        // Atoms at opposite corners of the cell, close via PBC
-        // A(0.5, 0.5, 0.5) B(9.5, 9.5, 9.5)
-        // diff = (9, 9, 9) → wrap → (-1, -1, -1) → dist = sqrt(3) ≈ 1.73
+        // A(0.5, 0.5, 0.5) B(9.5, 9.5, 9.5) in 10x10x10 box
+        // dist via PBC = sqrt(3) ≈ 1.73
         let sys = System {
             pos: vec![Vector3::new(0.5, 0.5, 0.5), Vector3::new(9.5, 9.5, 9.5)],
             cell: UnitCell {
@@ -242,6 +216,145 @@ mod tests {
             },
         };
         let result = sys.build_neighbor_list(2.0);
-        assert_eq!(result, vec![(0, 1)]);
+        // Both directions
+        let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
+        assert_eq!(pairs.len(), 2);
+        assert!(pairs.contains(&(0, 1)));
+        assert!(pairs.contains(&(1, 0)));
+    }
+
+    #[test]
+    fn test_neighbor_list_self_image() {
+        // Single atom at origin, L=3, cutoff=3.0 (== L, boundary case)
+        // Self-images at distance 3.0 along each axis (±a, ±b, ±c) → 6 neighbors
+        // Diagonal images e.g. (3,3,0) at dist=sqrt(18)≈4.24 → outside cutoff
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0)],
+            cell: UnitCell {
+                a: 3.0,
+                b: 3.0,
+                c: 3.0,
+            },
+        };
+        let result = sys.build_neighbor_list(3.0);
+        // All neighbors are self-images (i==0, j==0)
+        assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
+        assert_eq!(result.len(), 6);
+        // Each should have distance 3.0
+        assert!(result.iter().all(|n| (n.distance - 3.0).abs() < 1e-10));
+        // Offsets should be the 6 face-adjacent cells
+        let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
+        assert!(offsets.contains(&[1, 0, 0]));
+        assert!(offsets.contains(&[-1, 0, 0]));
+        assert!(offsets.contains(&[0, 1, 0]));
+        assert!(offsets.contains(&[0, -1, 0]));
+        assert!(offsets.contains(&[0, 0, 1]));
+        assert!(offsets.contains(&[0, 0, -1]));
+    }
+
+    #[test]
+    fn test_neighbor_list_multiple_images() {
+        // 2 atoms in L=4 box, cutoff=5
+        // A(0,0,0) B(1,0,0)
+        // cutoff > L/2, so multiple images of B are neighbors of A:
+        //   offset [0,0,0]: dist=1  ✓
+        //   offset [-1,0,0]: B at (-3,0,0), dist=3  ✓
+        //   offset [1,0,0]: B at (5,0,0), dist=5  ✓ (boundary)
+        //   offset [0,±1,0], [0,0,±1]: dist=sqrt(17)≈4.12  ✓
+        //   offset [-1,±1,0], [-1,0,±1]: dist=sqrt(9+16)=5  ✓ (boundary)
+        //   → 11 total
+        // Also A self-images at distance 4.0 along each axis:
+        //   (±4,0,0), (0,±4,0), (0,0,±4) → dist=4  ✓ (6 total)
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)],
+            cell: UnitCell {
+                a: 4.0,
+                b: 4.0,
+                c: 4.0,
+            },
+        };
+        let result = sys.build_neighbor_list(5.0);
+
+        // Check A→B has multiple offsets
+        let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+        assert_eq!(a_to_b.len(), 11);
+        assert!(
+            a_to_b
+                .iter()
+                .any(|n| n.offset == [0, 0, 0] && (n.distance - 1.0).abs() < 1e-10)
+        );
+        assert!(
+            a_to_b
+                .iter()
+                .any(|n| n.offset == [-1, 0, 0] && (n.distance - 3.0).abs() < 1e-10)
+        );
+
+        // Check self-images exist (A→A with offset != [0,0,0])
+        let a_self: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 0).collect();
+        assert_eq!(a_self.len(), 6);
+        assert!(a_self.iter().all(|n| (n.distance - 4.0).abs() < 1e-10));
+    }
+
+    #[test]
+    fn test_neighbor_list_non_cubic() {
+        // Non-cubic cell: a=3, b=10, c=10, cutoff=3.5
+        // A(0,0,0) B(1,0,0)
+        // Along a-axis (L=3): replicas needed. Along b,c (L=10): no replicas.
+        // A→B: offset [0,0,0] dist=1 ✓, offset [-1,0,0] dist=|1-3|=2 ✓, offset [1,0,0] dist=|1+3|=4 ✗
+        // A→A self-image: offset [±1,0,0] dist=3 ✓, offset [0,±1,0] dist=10 ✗
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)],
+            cell: UnitCell {
+                a: 3.0,
+                b: 10.0,
+                c: 10.0,
+            },
+        };
+        let result = sys.build_neighbor_list(3.5);
+
+        // A→B: offset [0,0,0] (dist=1) and [-1,0,0] (dist=2)
+        let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+        assert_eq!(a_to_b.len(), 2);
+        assert!(
+            a_to_b
+                .iter()
+                .any(|n| n.offset == [0, 0, 0] && (n.distance - 1.0).abs() < 1e-10)
+        );
+        assert!(
+            a_to_b
+                .iter()
+                .any(|n| n.offset == [-1, 0, 0] && (n.distance - 2.0).abs() < 1e-10)
+        );
+
+        // A self-images: only along a-axis (dist=3), not b or c (dist=10)
+        let a_self: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 0).collect();
+        assert_eq!(a_self.len(), 2);
+        assert!(a_self.iter().any(|n| n.offset == [1, 0, 0]));
+        assert!(a_self.iter().any(|n| n.offset == [-1, 0, 0]));
+    }
+
+    #[test]
+    fn test_neighbor_list_unwrapped_coordinates() {
+        // Atom j is far outside the primary cell (diff > L).
+        // L=5, cutoff=3, i=(1,1,1), j=(14,-8,22)
+        // j wrapped = (4, 2, 2), minimum-image dist = sqrt(9+1+1) = sqrt(11) ≈ 3.32 → outside
+        // But i=(1,1,1) j_wrapped=(4,2,2): diff=(3,1,1)
+        //   offset [0,0,0]: dist=sqrt(11)≈3.32 → outside cutoff
+        //   offset [-1,0,0]: j at (-1,2,2), diff=(-2,1,1), dist=sqrt(6)≈2.45 ✓
+        // Without wrapping, no offset in [-1,1] could find this neighbor.
+        let sys = System {
+            pos: vec![Vector3::new(1.0, 1.0, 1.0), Vector3::new(14.0, -8.0, 22.0)],
+            cell: UnitCell {
+                a: 5.0,
+                b: 5.0,
+                c: 5.0,
+            },
+        };
+        let result = sys.build_neighbor_list(3.0);
+        assert_eq!(result.len(), 2); // i→j and j→i
+        let i_to_j: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+        assert_eq!(i_to_j.len(), 1);
+        assert_eq!(i_to_j[0].offset, [-1, 0, 0]);
+        assert!((i_to_j[0].distance - 6.0_f64.sqrt()).abs() < 1e-10);
     }
 }
