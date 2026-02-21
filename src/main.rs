@@ -103,7 +103,7 @@ impl System {
                                     c_ind as f64 * self.cell.c,
                                 );
                             let distance = (pos_j - wrapped[i]).norm();
-                            if distance < cutoff {
+                            if distance <= cutoff {
                                 result.push(Neighbor {
                                     i,
                                     j,
@@ -225,7 +225,7 @@ mod tests {
 
     #[test]
     fn test_neighbor_list_self_image() {
-        // Single atom at origin, L=3, cutoff=3.5
+        // Single atom at origin, L=3, cutoff=3.0 (== L, boundary case)
         // Self-images at distance 3.0 along each axis (±a, ±b, ±c) → 6 neighbors
         // Diagonal images e.g. (3,3,0) at dist=sqrt(18)≈4.24 → outside cutoff
         let sys = System {
@@ -236,7 +236,7 @@ mod tests {
                 c: 3.0,
             },
         };
-        let result = sys.build_neighbor_list(3.5);
+        let result = sys.build_neighbor_list(3.0);
         // All neighbors are self-images (i==0, j==0)
         assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
         assert_eq!(result.len(), 6);
@@ -259,11 +259,10 @@ mod tests {
         // cutoff > L/2, so multiple images of B are neighbors of A:
         //   offset [0,0,0]: dist=1  ✓
         //   offset [-1,0,0]: B at (-3,0,0), dist=3  ✓
-        //   offset [1,0,0]: B at (5,0,0), dist=5 → not < cutoff ✗
-        //   offset [0,1,0]: B at (1,4,0), dist=sqrt(17)≈4.12  ✓
-        //   offset [0,-1,0]: B at (1,-4,0), dist=sqrt(17)≈4.12  ✓
-        //   offset [0,0,1]: B at (1,0,4), dist=sqrt(17)≈4.12  ✓
-        //   offset [0,0,-1]: B at (1,0,-4), dist=sqrt(17)≈4.12  ✓
+        //   offset [1,0,0]: B at (5,0,0), dist=5  ✓ (boundary)
+        //   offset [0,±1,0], [0,0,±1]: dist=sqrt(17)≈4.12  ✓
+        //   offset [-1,±1,0], [-1,0,±1]: dist=sqrt(9+16)=5  ✓ (boundary)
+        //   → 11 total
         // Also A self-images at distance 4.0 along each axis:
         //   (±4,0,0), (0,±4,0), (0,0,±4) → dist=4  ✓ (6 total)
         let sys = System {
@@ -278,9 +277,7 @@ mod tests {
 
         // Check A→B has multiple offsets
         let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
-        // [0,0,0] dist=1, [-1,0,0] dist=3,
-        // [0,1,0], [0,-1,0], [0,0,1], [0,0,-1] each dist=√17≈4.12 → 6 total
-        assert_eq!(a_to_b.len(), 6);
+        assert_eq!(a_to_b.len(), 11);
         assert!(
             a_to_b
                 .iter()
