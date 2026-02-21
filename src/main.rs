@@ -120,6 +120,9 @@ impl System {
     }
 
     fn build_neighbor_list(&self, cutoff: f64) -> Vec<Neighbor> {
+        if cutoff == 0.0 {
+            return Vec::new();
+        }
         // Wrap positions into [0, L) so that ceil(cutoff / L) replicas suffice.
         let wrapped: Vec<Vector3> = self
             .pos
