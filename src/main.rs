@@ -118,6 +118,80 @@ impl System {
         }
         result
     }
+
+    fn build_neighbor_list(&self, cutoff: f64) -> Vec<Neighbor> {
+        // Wrap positions into [0, L) so that ceil(cutoff / L) replicas suffice.
+        let wrapped: Vec<Vector3> = self
+            .pos
+            .iter()
+            .map(|p| {
+                Vector3::new(
+                    p.x.rem_euclid(self.cell.a),
+                    p.y.rem_euclid(self.cell.b),
+                    p.z.rem_euclid(self.cell.c),
+                )
+            })
+            .collect();
+
+        let (bins, n_bins, bin_sizes) = assign_to_bins(&wrapped, &self.cell, cutoff);
+        // When bin_size is smaller than cutoff, need to search more than 1 (when cutoff is greater than lattice constant)
+        let search_ranges: [i32; 3] = bin_sizes.map(|b| (cutoff / b).ceil() as i32);
+
+        let mut result = Vec::new();
+        for bz in 0..n_bins[2] as i32 {
+            for by in 0..n_bins[1] as i32 {
+                for bx in 0..n_bins[0] as i32 {
+                    let cur_idx = bx + n_bins[0] as i32 * (by + n_bins[1] as i32 * bz);
+                    let i_idxs: &Vec<usize> = &bins[cur_idx as usize];
+
+                    for dz in -search_ranges[2]..=search_ranges[2] {
+                        for dy in -search_ranges[1]..=search_ranges[1] {
+                            for dx in -search_ranges[0]..=search_ranges[0] {
+                                for &i_idx in i_idxs {
+                                    let offset = [
+                                        (bx + dx).div_euclid(n_bins[0] as i32),
+                                        (by + dy).div_euclid(n_bins[1] as i32),
+                                        (bz + dz).div_euclid(n_bins[2] as i32),
+                                    ];
+                                    let shift_vec = Vector3::new(
+                                        offset[0] as f64 * self.cell.a,
+                                        offset[1] as f64 * self.cell.b,
+                                        offset[2] as f64 * self.cell.c,
+                                    );
+
+                                    let nb_bins = [
+                                        (bx + dx).rem_euclid(n_bins[0] as i32),
+                                        (by + dy).rem_euclid(n_bins[1] as i32),
+                                        (bz + dz).rem_euclid(n_bins[2] as i32),
+                                    ];
+                                    let j_idx = nb_bins[0]
+                                        + n_bins[0] as i32
+                                            * (nb_bins[1] + n_bins[1] as i32 * nb_bins[2]);
+                                    let j_idxs: &Vec<usize> = &bins[j_idx as usize];
+                                    for &j_idx in j_idxs {
+                                        if i_idx == j_idx && offset == [0, 0, 0] {
+                                            continue;
+                                        }
+                                        let distance =
+                                            (wrapped[j_idx] + shift_vec - wrapped[i_idx]).norm();
+                                        if distance <= cutoff {
+                                            result.push(Neighbor {
+                                                i: i_idx,
+                                                j: j_idx,
+                                                offset,
+                                                distance,
+                                            })
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        result
+    }
 }
 
 #[derive(Debug)]
