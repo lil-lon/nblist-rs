@@ -395,9 +395,19 @@ mod tests {
     fn test_assign_to_bins_basic() {
         // Non-cubic cell: a=6, b=10, c=15, cutoff=3
         // n_bins = [2, 3, 5], bin_sizes = [3.0, 10/3, 3.0]
-        // Atom0(0,0,0) → bin(0,0,0) → 0+2*(0+3*0) = 0
-        // Atom1(4,5,13) → bin(1,1,4) → 1+2*(1+3*4) = 27
-        let wrapped = vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(4.0, 5.0, 13.0)];
+        // linear index = bx + 2*(by + 3*bz)
+        // Atom0(0,0,0)     → bin(0,0,0) → 0
+        // Atom1(4,5,13)    → bin(1,1,4) → 1+2*(1+3*4) = 27
+        // Atom2(1,8,7)     → bin(0,2,2) → 0+2*(2+3*2) = 16
+        // Atom3(5.5,0.5,14)→ bin(1,0,4) → 1+2*(0+3*4) = 25
+        // Atom4(0.5,0.5,0.5)→ bin(0,0,0) → 0 (same as Atom0)
+        let wrapped = vec![
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(4.0, 5.0, 13.0),
+            Vector3::new(1.0, 8.0, 7.0),
+            Vector3::new(5.5, 0.5, 14.0),
+            Vector3::new(0.5, 0.5, 0.5),
+        ];
         let cell = UnitCell {
             a: 6.0,
             b: 10.0,
@@ -408,8 +418,10 @@ mod tests {
         assert!((bin_sizes[0] - 3.0).abs() < 1e-10);
         assert!((bin_sizes[1] - 10.0 / 3.0).abs() < 1e-10);
         assert!((bin_sizes[2] - 3.0).abs() < 1e-10);
-        assert_eq!(bins[0], vec![0]);
+        assert_eq!(bins[0], vec![0, 4]);
         assert_eq!(bins[27], vec![1]);
+        assert_eq!(bins[16], vec![2]);
+        assert_eq!(bins[25], vec![3]);
     }
 
     #[test]
