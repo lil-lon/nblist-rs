@@ -209,4 +209,117 @@ mod tests {
         assert!(pairs.contains(&(0, 1)));
         assert!(pairs.contains(&(1, 0)));
     }
+
+    #[test]
+    fn test_neighbor_list_self_image() {
+        // Single atom at origin, L=3, cutoff=3.5
+        // Self-images at distance 3.0 along each axis (±a, ±b, ±c) → 6 neighbors
+        // Diagonal images e.g. (3,3,0) at dist=sqrt(18)≈4.24 → outside cutoff
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0)],
+            cell: UnitCell {
+                a: 3.0,
+                b: 3.0,
+                c: 3.0,
+            },
+        };
+        let result = sys.build_neighbor_list(3.5);
+        // All neighbors are self-images (i==0, j==0)
+        assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
+        assert_eq!(result.len(), 6);
+        // Each should have distance 3.0
+        assert!(result.iter().all(|n| (n.distance - 3.0).abs() < 1e-10));
+        // Offsets should be the 6 face-adjacent cells
+        let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
+        assert!(offsets.contains(&[1, 0, 0]));
+        assert!(offsets.contains(&[-1, 0, 0]));
+        assert!(offsets.contains(&[0, 1, 0]));
+        assert!(offsets.contains(&[0, -1, 0]));
+        assert!(offsets.contains(&[0, 0, 1]));
+        assert!(offsets.contains(&[0, 0, -1]));
+    }
+
+    #[test]
+    fn test_neighbor_list_multiple_images() {
+        // 2 atoms in L=4 box, cutoff=5
+        // A(0,0,0) B(1,0,0)
+        // cutoff > L/2, so multiple images of B are neighbors of A:
+        //   offset [0,0,0]: dist=1  ✓
+        //   offset [-1,0,0]: B at (-3,0,0), dist=3  ✓
+        //   offset [1,0,0]: B at (5,0,0), dist=5 → not < cutoff ✗
+        //   offset [0,1,0]: B at (1,4,0), dist=sqrt(17)≈4.12  ✓
+        //   offset [0,-1,0]: B at (1,-4,0), dist=sqrt(17)≈4.12  ✓
+        //   offset [0,0,1]: B at (1,0,4), dist=sqrt(17)≈4.12  ✓
+        //   offset [0,0,-1]: B at (1,0,-4), dist=sqrt(17)≈4.12  ✓
+        // Also A self-images at distance 4.0 along each axis:
+        //   (±4,0,0), (0,±4,0), (0,0,±4) → dist=4  ✓ (6 total)
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)],
+            cell: UnitCell {
+                a: 4.0,
+                b: 4.0,
+                c: 4.0,
+            },
+        };
+        let result = sys.build_neighbor_list(5.0);
+
+        // Check A→B has multiple offsets
+        let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+        // [0,0,0] dist=1, [-1,0,0] dist=3,
+        // [0,1,0], [0,-1,0], [0,0,1], [0,0,-1] each dist=√17≈4.12 → 6 total
+        assert_eq!(a_to_b.len(), 6);
+        assert!(
+            a_to_b
+                .iter()
+                .any(|n| n.offset == [0, 0, 0] && (n.distance - 1.0).abs() < 1e-10)
+        );
+        assert!(
+            a_to_b
+                .iter()
+                .any(|n| n.offset == [-1, 0, 0] && (n.distance - 3.0).abs() < 1e-10)
+        );
+
+        // Check self-images exist (A→A with offset != [0,0,0])
+        let a_self: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 0).collect();
+        assert_eq!(a_self.len(), 6);
+        assert!(a_self.iter().all(|n| (n.distance - 4.0).abs() < 1e-10));
+    }
+
+    #[test]
+    fn test_neighbor_list_non_cubic() {
+        // Non-cubic cell: a=3, b=10, c=10, cutoff=3.5
+        // A(0,0,0) B(1,0,0)
+        // Along a-axis (L=3): replicas needed. Along b,c (L=10): no replicas.
+        // A→B: offset [0,0,0] dist=1 ✓, offset [-1,0,0] dist=|1-3|=2 ✓, offset [1,0,0] dist=|1+3|=4 ✗
+        // A→A self-image: offset [±1,0,0] dist=3 ✓, offset [0,±1,0] dist=10 ✗
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)],
+            cell: UnitCell {
+                a: 3.0,
+                b: 10.0,
+                c: 10.0,
+            },
+        };
+        let result = sys.build_neighbor_list(3.5);
+
+        // A→B: offset [0,0,0] (dist=1) and [-1,0,0] (dist=2)
+        let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+        assert_eq!(a_to_b.len(), 2);
+        assert!(
+            a_to_b
+                .iter()
+                .any(|n| n.offset == [0, 0, 0] && (n.distance - 1.0).abs() < 1e-10)
+        );
+        assert!(
+            a_to_b
+                .iter()
+                .any(|n| n.offset == [-1, 0, 0] && (n.distance - 2.0).abs() < 1e-10)
+        );
+
+        // A self-images: only along a-axis (dist=3), not b or c (dist=10)
+        let a_self: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 0).collect();
+        assert_eq!(a_self.len(), 2);
+        assert!(a_self.iter().any(|n| n.offset == [1, 0, 0]));
+        assert!(a_self.iter().any(|n| n.offset == [-1, 0, 0]));
+    }
 }
