@@ -74,7 +74,20 @@ impl System {
         let a_replicas = (cutoff / self.cell.a).ceil() as i32;
         let b_replicas = (cutoff / self.cell.b).ceil() as i32;
         let c_replicas = (cutoff / self.cell.c).ceil() as i32;
-        let n = self.pos.len();
+        // Wrap positions into [0, L) so that ceil(cutoff / L) replicas suffice.
+        let wrapped: Vec<Vector3> = self
+            .pos
+            .iter()
+            .map(|p| {
+                Vector3::new(
+                    p.x.rem_euclid(self.cell.a),
+                    p.y.rem_euclid(self.cell.b),
+                    p.z.rem_euclid(self.cell.c),
+                )
+            })
+            .collect();
+        let n = wrapped.len();
+
         for i in 0..n {
             for j in 0..n {
                 for a_ind in -a_replicas..=a_replicas {
@@ -83,13 +96,13 @@ impl System {
                             if i == j && (a_ind, b_ind, c_ind) == (0, 0, 0) {
                                 continue;
                             }
-                            let pos_j = self.pos[j]
+                            let pos_j = wrapped[j]
                                 + Vector3::new(
                                     a_ind as f64 * self.cell.a,
                                     b_ind as f64 * self.cell.b,
                                     c_ind as f64 * self.cell.c,
                                 );
-                            let distance = (pos_j - self.pos[i]).norm();
+                            let distance = (pos_j - wrapped[i]).norm();
                             if distance < cutoff {
                                 result.push(Neighbor {
                                     i,
@@ -321,5 +334,30 @@ mod tests {
         assert_eq!(a_self.len(), 2);
         assert!(a_self.iter().any(|n| n.offset == [1, 0, 0]));
         assert!(a_self.iter().any(|n| n.offset == [-1, 0, 0]));
+    }
+
+    #[test]
+    fn test_neighbor_list_unwrapped_coordinates() {
+        // Atom j is far outside the primary cell (diff > L).
+        // L=5, cutoff=3, i=(1,1,1), j=(14,-8,22)
+        // j wrapped = (4, 2, 2), minimum-image dist = sqrt(9+1+1) = sqrt(11) ≈ 3.32 → outside
+        // But i=(1,1,1) j_wrapped=(4,2,2): diff=(3,1,1)
+        //   offset [0,0,0]: dist=sqrt(11)≈3.32 → outside cutoff
+        //   offset [-1,0,0]: j at (-1,2,2), diff=(-2,1,1), dist=sqrt(6)≈2.45 ✓
+        // Without wrapping, no offset in [-1,1] could find this neighbor.
+        let sys = System {
+            pos: vec![Vector3::new(1.0, 1.0, 1.0), Vector3::new(14.0, -8.0, 22.0)],
+            cell: UnitCell {
+                a: 5.0,
+                b: 5.0,
+                c: 5.0,
+            },
+        };
+        let result = sys.build_neighbor_list(3.0);
+        assert_eq!(result.len(), 2); // i→j and j→i
+        let i_to_j: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+        assert_eq!(i_to_j.len(), 1);
+        assert_eq!(i_to_j[0].offset, [-1, 0, 0]);
+        assert!((i_to_j[0].distance - 6.0_f64.sqrt()).abs() < 1e-10);
     }
 }
