@@ -69,7 +69,7 @@ struct System {
 }
 
 impl System {
-    fn build_neighbor_list(&self, cutoff: f64) -> Vec<Neighbor> {
+    fn build_neighbor_list_naive(&self, cutoff: f64) -> Vec<Neighbor> {
         let mut result = Vec::new();
         let a_replicas = (cutoff / self.cell.a).ceil() as i32;
         let b_replicas = (cutoff / self.cell.b).ceil() as i32;
@@ -179,7 +179,7 @@ mod tests {
                 c: 10.0,
             },
         };
-        let result = sys.build_neighbor_list(3.0);
+        let result = sys.build_neighbor_list_naive(3.0);
         // Both directions: (0,1), (1,0), (0,3), (3,0)
         let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
         assert!(pairs.contains(&(0, 1)));
@@ -199,7 +199,7 @@ mod tests {
                 c: 20.0,
             },
         };
-        let result = sys.build_neighbor_list(1.0);
+        let result = sys.build_neighbor_list_naive(1.0);
         assert!(result.is_empty());
     }
 
@@ -215,7 +215,7 @@ mod tests {
                 c: 10.0,
             },
         };
-        let result = sys.build_neighbor_list(2.0);
+        let result = sys.build_neighbor_list_naive(2.0);
         // Both directions
         let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
         assert_eq!(pairs.len(), 2);
@@ -236,7 +236,7 @@ mod tests {
                 c: 3.0,
             },
         };
-        let result = sys.build_neighbor_list(3.0);
+        let result = sys.build_neighbor_list_naive(3.0);
         // All neighbors are self-images (i==0, j==0)
         assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
         assert_eq!(result.len(), 6);
@@ -273,7 +273,7 @@ mod tests {
                 c: 4.0,
             },
         };
-        let result = sys.build_neighbor_list(5.0);
+        let result = sys.build_neighbor_list_naive(5.0);
 
         // Check A→B has multiple offsets
         let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
@@ -310,7 +310,7 @@ mod tests {
                 c: 10.0,
             },
         };
-        let result = sys.build_neighbor_list(3.5);
+        let result = sys.build_neighbor_list_naive(3.5);
 
         // A→B: offset [0,0,0] (dist=1) and [-1,0,0] (dist=2)
         let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
@@ -350,7 +350,7 @@ mod tests {
                 c: 5.0,
             },
         };
-        let result = sys.build_neighbor_list(3.0);
+        let result = sys.build_neighbor_list_naive(3.0);
         assert_eq!(result.len(), 2); // i→j and j→i
         let i_to_j: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
         assert_eq!(i_to_j.len(), 1);
