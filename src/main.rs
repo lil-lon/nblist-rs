@@ -204,8 +204,9 @@ mod tests {
         };
         let result = sys.build_neighbor_list(2.0);
         // Both directions
-        assert_eq!(result.len(), 2);
-        assert!(result.iter().any(|n| n.i == 0 && n.j == 1));
-        assert!(result.iter().any(|n| n.i == 1 && n.j == 0));
+        let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
+        assert_eq!(pairs.len(), 2);
+        assert!(pairs.contains(&(0, 1)));
+        assert!(pairs.contains(&(1, 0)));
     }
 }
