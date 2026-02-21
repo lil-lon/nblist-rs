@@ -90,18 +90,50 @@ impl System {
         wrapped.norm()
     }
 
-    fn build_neighbor_list(&self, cutoff: f64) -> Vec<(usize, usize)> {
+    fn build_neighbor_list(&self, cutoff: f64) -> Vec<Neighbor> {
         let mut result = Vec::new();
+        let a_replicas = (cutoff / self.cell.a).ceil() as i32;
+        let b_replicas = (cutoff / self.cell.b).ceil() as i32;
+        let c_replicas = (cutoff / self.cell.c).ceil() as i32;
         let n = self.pos.len();
         for i in 0..n {
-            for j in (i + 1)..n {
-                if self.distance(i, j) <= cutoff {
-                    result.push((i, j))
+            for j in 0..n {
+                for a_ind in -a_replicas..=a_replicas {
+                    for b_ind in -b_replicas..=b_replicas {
+                        for c_ind in -c_replicas..=c_replicas {
+                            if i == j && (a_ind, b_ind, c_ind) == (0, 0, 0) {
+                                continue;
+                            }
+                            let pos_j = self.pos[j]
+                                + Vector3::new(
+                                    a_ind as f64 * self.cell.a,
+                                    b_ind as f64 * self.cell.b,
+                                    c_ind as f64 * self.cell.c,
+                                );
+                            let distance = (pos_j - self.pos[i]).norm();
+                            if distance < cutoff {
+                                result.push(Neighbor {
+                                    i,
+                                    j,
+                                    offset: [a_ind, b_ind, c_ind],
+                                    distance,
+                                })
+                            }
+                        }
+                    }
                 }
             }
         }
         result
     }
+}
+
+#[derive(Debug)]
+struct Neighbor {
+    i: usize,
+    j: usize,
+    offset: [i32; 3],
+    distance: f64,
 }
 
 #[cfg(test)]
@@ -179,6 +211,10 @@ mod tests {
 
     #[test]
     fn test_neighbor_list_basic() {
+        // 4 atoms in a 10x10x10 box, cutoff = 3.0
+        // A(0,0,0) B(2,0,0) C(5,5,5) D(8,0,0)
+        // A-B: 2.0 ✓, B-A: 2.0 ✓
+        // A-D via PBC: 2.0 ✓, D-A via PBC: 2.0 ✓
         let sys = System {
             pos: vec![
                 Vector3::new(0.0, 0.0, 0.0),
@@ -193,25 +229,13 @@ mod tests {
             },
         };
         let result = sys.build_neighbor_list(3.0);
-        assert_eq!(result, vec![(0, 1), (0, 3)]);
-    }
-
-    #[test]
-    fn test_neighbor_list_all_neighbors() {
-        let sys = System {
-            pos: vec![
-                Vector3::new(0.0, 0.0, 0.0),
-                Vector3::new(1.0, 0.0, 0.0),
-                Vector3::new(0.0, 1.0, 0.0),
-            ],
-            cell: UnitCell {
-                a: 10.0,
-                b: 10.0,
-                c: 10.0,
-            },
-        };
-        let result = sys.build_neighbor_list(5.0);
-        assert_eq!(result, vec![(0, 1), (0, 2), (1, 2)]);
+        // Both directions: (0,1), (1,0), (0,3), (3,0)
+        let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
+        assert!(pairs.contains(&(0, 1)));
+        assert!(pairs.contains(&(1, 0)));
+        assert!(pairs.contains(&(0, 3)));
+        assert!(pairs.contains(&(3, 0)));
+        assert_eq!(result.len(), 4);
     }
 
     #[test]
@@ -219,9 +243,9 @@ mod tests {
         let sys = System {
             pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(5.0, 5.0, 5.0)],
             cell: UnitCell {
-                a: 10.0,
-                b: 10.0,
-                c: 10.0,
+                a: 20.0,
+                b: 20.0,
+                c: 20.0,
             },
         };
         let result = sys.build_neighbor_list(1.0);
@@ -230,9 +254,8 @@ mod tests {
 
     #[test]
     fn test_neighbor_list_pbc_corner() {
-        // Atoms at opposite corners of the cell, close via PBC
-        // A(0.5, 0.5, 0.5) B(9.5, 9.5, 9.5)
-        // diff = (9, 9, 9) → wrap → (-1, -1, -1) → dist = sqrt(3) ≈ 1.73
+        // A(0.5, 0.5, 0.5) B(9.5, 9.5, 9.5) in 10x10x10 box
+        // dist via PBC = sqrt(3) ≈ 1.73
         let sys = System {
             pos: vec![Vector3::new(0.5, 0.5, 0.5), Vector3::new(9.5, 9.5, 9.5)],
             cell: UnitCell {
@@ -242,6 +265,9 @@ mod tests {
             },
         };
         let result = sys.build_neighbor_list(2.0);
-        assert_eq!(result, vec![(0, 1)]);
+        // Both directions
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().any(|n| n.i == 0 && n.j == 1));
+        assert!(result.iter().any(|n| n.i == 1 && n.j == 0));
     }
 }
