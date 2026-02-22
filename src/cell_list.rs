@@ -79,7 +79,7 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
 
 /// Expects positions already wrapped into [0, L).
 /// Wrapping is the caller's responsibility.
-pub(crate) fn assign_to_bins(
+fn assign_to_bins(
     wrapped: &[Vector3],
     cell: &UnitCell,
     cutoff: f64,
