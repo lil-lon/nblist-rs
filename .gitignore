@@ -21,3 +21,7 @@ target
 #.idea/
 
 .claude
+
+# Benchmark outputs
+benchmarks/results/*
+!benchmarks/results/.gitkeep

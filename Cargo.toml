@@ -3,4 +3,9 @@ name = "nblist"
 version = "0.1.0"
 edition = "2024"
 
+[[bench]]
+name = "benchmark"
+path = "benches/benchmark.rs"
+harness = false
+
 [dependencies]
