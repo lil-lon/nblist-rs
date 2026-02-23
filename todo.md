@@ -30,11 +30,11 @@
 
 # Step 4: Cell List (O(N))
 
-- [ ] Divide box into cells of size >= cutoff
-- [ ] Assign atoms to cells
-- [ ] Search only neighboring cells (27 cells in 3D)
-- [ ] `#[test]` verify same result as naive
-- [ ] Benchmark and compare with naive
+- [x] Divide box into cells of size >= cutoff
+- [x] Assign atoms to cells
+- [x] Search only neighboring cells (27 cells in 3D)
+- [x] `#[test]` verify same result as naive
+- [x] Benchmark and compare with naive
 
 # Step 5: Triclinic Cell Support & Fractional Coordinates
 
