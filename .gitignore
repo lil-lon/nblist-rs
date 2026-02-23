@@ -21,3 +21,6 @@ target
 #.idea/
 
 .claude
+
+# Benchmark outputs
+benchmarks/results/*
