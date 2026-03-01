@@ -8,11 +8,12 @@ fn main() {
             Vector3::new(5.0, 5.0, 5.0),
             Vector3::new(8.0, 0.0, 0.0),
         ],
-        cell: UnitCell {
-            a: 10.0,
-            b: 10.0,
-            c: 10.0,
-        },
+        cell: UnitCell::new(
+            Vector3::new(6.0, 1.0, 0.5),
+            Vector3::new(0.5, 8.0, 1.5),
+            Vector3::new(1.0, 0.5, 5.0),
+        )
+        .unwrap(),
     };
     let cutoff = 3.0;
 

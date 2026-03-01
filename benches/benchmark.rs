@@ -29,7 +29,12 @@ fn simple_cubic(n: usize, a: f64) -> System {
     let l = n as f64 * a;
     System {
         pos,
-        cell: UnitCell { a: l, b: l, c: l },
+        cell: UnitCell::new(
+            Vector3::new(l, 0.0, 0.0),
+            Vector3::new(0.0, l, 0.0),
+            Vector3::new(0.0, 0.0, l),
+        )
+        .unwrap(),
     }
 }
 

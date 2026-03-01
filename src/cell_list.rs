@@ -4,22 +4,25 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
     if cutoff == 0.0 {
         return Vec::new();
     }
-    // Wrap positions into [0, L) so that ceil(cutoff / L) replicas suffice.
+    // Wrap positions into [0, 1) using fractional coordinates
     let wrapped: Vec<Vector3> = system
         .pos
         .iter()
         .map(|p| {
+            let f = system.cell.get_fractional(p);
             Vector3::new(
-                p.x.rem_euclid(system.cell.a),
-                p.y.rem_euclid(system.cell.b),
-                p.z.rem_euclid(system.cell.c),
+                f.x.rem_euclid(1.0),
+                f.y.rem_euclid(1.0),
+                f.z.rem_euclid(1.0),
             )
         })
         .collect();
 
     let (bins, n_bins, bin_sizes) = assign_to_bins(&wrapped, &system.cell, cutoff);
+    let heights = system.cell.get_heights();
+    let bin_heights: [f64; 3] = std::array::from_fn(|i| heights[i] * bin_sizes[i]);
     // When bin_size is smaller than cutoff, need to search more than 1 (when cutoff is greater than lattice constant)
-    let search_ranges: [i32; 3] = bin_sizes.map(|b| (cutoff / b).ceil() as i32);
+    let search_ranges: [i32; 3] = bin_heights.map(|b| (cutoff / b).ceil() as i32);
 
     let mut result = Vec::new();
     for bz in 0..n_bins[2] as i32 {
@@ -37,11 +40,6 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                                     (by + dy).div_euclid(n_bins[1] as i32),
                                     (bz + dz).div_euclid(n_bins[2] as i32),
                                 ];
-                                let shift_vec = Vector3::new(
-                                    offset[0] as f64 * system.cell.a,
-                                    offset[1] as f64 * system.cell.b,
-                                    offset[2] as f64 * system.cell.c,
-                                );
 
                                 let nb_bins = [
                                     (bx + dx).rem_euclid(n_bins[0] as i32),
@@ -56,8 +54,14 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                                     if i_idx == j_idx && offset == [0, 0, 0] {
                                         continue;
                                     }
-                                    let distance =
-                                        (wrapped[j_idx] + shift_vec - wrapped[i_idx]).norm();
+                                    let diff = wrapped[j_idx]
+                                        + Vector3::new(
+                                            offset[0] as f64,
+                                            offset[1] as f64,
+                                            offset[2] as f64,
+                                        )
+                                        - wrapped[i_idx];
+                                    let distance = system.cell.get_cartesian(&diff).norm();
                                     if distance <= cutoff {
                                         result.push(Neighbor {
                                             i: i_idx,
@@ -77,7 +81,7 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
     result
 }
 
-/// Expects positions already wrapped into [0, L).
+/// Expects positions already wrapped into [0, 1).
 /// Wrapping is the caller's responsibility.
 fn assign_to_bins(
     wrapped: &[Vector3],
@@ -91,9 +95,10 @@ fn assign_to_bins(
         x_bin_idx + n_bins[0] * (y_bin_idx + n_bins[1] * z_bin_idx)
     }
 
-    let lattice: [f64; 3] = [cell.a, cell.b, cell.c];
-    let n_bins: [usize; 3] = lattice.map(|l| (l / cutoff).floor().max(1.0) as usize);
-    let bin_sizes: [f64; 3] = std::array::from_fn(|i| lattice[i] / n_bins[i] as f64);
+    let heights = cell.get_heights();
+    let n_bins = heights.map(|h| (h / cutoff).floor().max(1.0) as usize);
+    // fractional bin sizes
+    let bin_sizes = n_bins.map(|bin| 1.0 / bin as f64);
 
     let atom_bins: Vec<usize> = wrapped
         .iter()
@@ -148,35 +153,62 @@ mod tests {
         test_neighbors::test_unwrapped_coordinates(super::build_neighbor_list);
     }
 
+    #[test]
+    fn triclinic_basic() {
+        test_neighbors::test_triclinic_basic(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_pbc_corner() {
+        test_neighbors::test_triclinic_pbc_corner(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_unwrapped() {
+        test_neighbors::test_triclinic_unwrapped(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_self_image() {
+        test_neighbors::test_triclinic_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_skewed() {
+        test_neighbors::test_triclinic_skewed(super::build_neighbor_list);
+    }
+
     // --- assign_to_bins tests (cell list specific) ---
 
     #[test]
     fn test_assign_to_bins_basic() {
         // Non-cubic cell: a=6, b=10, c=15, cutoff=3
-        // n_bins = [2, 3, 5], bin_sizes = [3.0, 10/3, 3.0]
+        // heights = [6, 10, 15] (orthogonal)
+        // n_bins = [2, 3, 5], bin_sizes(frac) = [1/2, 1/3, 1/5]
         // linear index = bx + 2*(by + 3*bz)
-        // Atom0(0,0,0)     → bin(0,0,0) → 0
-        // Atom1(4,5,13)    → bin(1,1,4) → 1+2*(1+3*4) = 27
-        // Atom2(1,8,7)     → bin(0,2,2) → 0+2*(2+3*2) = 16
-        // Atom3(5.5,0.5,14)→ bin(1,0,4) → 1+2*(0+3*4) = 25
-        // Atom4(0.5,0.5,0.5)→ bin(0,0,0) → 0 (same as Atom0)
+        // Atom0 frac(0,0,0)              → bin(0,0,0) → 0
+        // Atom1 frac(2/3, 0.5, 13/15)    → bin(1,1,4) → 1+2*(1+3*4) = 27
+        // Atom2 frac(1/6, 0.8, 7/15)     → bin(0,2,2) → 0+2*(2+3*2) = 16
+        // Atom3 frac(11/12, 0.05, 14/15) → bin(1,0,4) → 1+2*(0+3*4) = 25
+        // Atom4 frac(1/12, 0.05, 1/30)   → bin(0,0,0) → 0 (same as Atom0)
         let wrapped = vec![
             Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(4.0, 5.0, 13.0),
-            Vector3::new(1.0, 8.0, 7.0),
-            Vector3::new(5.5, 0.5, 14.0),
-            Vector3::new(0.5, 0.5, 0.5),
+            Vector3::new(2.0 / 3.0, 0.5, 13.0 / 15.0),
+            Vector3::new(1.0 / 6.0, 0.8, 7.0 / 15.0),
+            Vector3::new(11.0 / 12.0, 0.05, 14.0 / 15.0),
+            Vector3::new(1.0 / 12.0, 0.05, 1.0 / 30.0),
         ];
-        let cell = UnitCell {
-            a: 6.0,
-            b: 10.0,
-            c: 15.0,
-        };
+        let cell = UnitCell::new(
+            Vector3::new(6.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 15.0),
+        )
+        .unwrap();
         let (bins, n_bins, bin_sizes) = assign_to_bins(&wrapped, &cell, 3.0);
         assert_eq!(n_bins, [2, 3, 5]);
-        assert!((bin_sizes[0] - 3.0).abs() < 1e-10);
-        assert!((bin_sizes[1] - 10.0 / 3.0).abs() < 1e-10);
-        assert!((bin_sizes[2] - 3.0).abs() < 1e-10);
+        assert!((bin_sizes[0] - 0.5).abs() < 1e-10);
+        assert!((bin_sizes[1] - 1.0 / 3.0).abs() < 1e-10);
+        assert!((bin_sizes[2] - 0.2).abs() < 1e-10);
         assert_eq!(bins[0], vec![0, 4]);
         assert_eq!(bins[27], vec![1]);
         assert_eq!(bins[16], vec![2]);
@@ -186,12 +218,14 @@ mod tests {
     #[test]
     fn test_assign_to_bins_same_bin() {
         // Two atoms close together → both in bin(0,0,0)
-        let wrapped = vec![Vector3::new(1.0, 1.0, 1.0), Vector3::new(2.0, 2.0, 2.0)];
-        let cell = UnitCell {
-            a: 10.0,
-            b: 10.0,
-            c: 10.0,
-        };
+        // L=10, cutoff=3 → n_bins=[3,3,3], bin_sizes=[1/3,1/3,1/3]
+        let wrapped = vec![Vector3::new(0.1, 0.1, 0.1), Vector3::new(0.2, 0.2, 0.2)];
+        let cell = UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap();
         let (bins, _, _) = assign_to_bins(&wrapped, &cell, 3.0);
         assert_eq!(bins[0], vec![0, 1]);
     }
@@ -199,12 +233,16 @@ mod tests {
     #[test]
     fn test_assign_to_bins_cutoff_larger_than_cell() {
         // L=3, cutoff=5 → n_bins=[1,1,1], single bin
-        let wrapped = vec![Vector3::new(0.5, 0.5, 0.5), Vector3::new(2.0, 1.0, 2.5)];
-        let cell = UnitCell {
-            a: 3.0,
-            b: 3.0,
-            c: 3.0,
-        };
+        let wrapped = vec![
+            Vector3::new(1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0),
+            Vector3::new(2.0 / 3.0, 1.0 / 3.0, 5.0 / 6.0),
+        ];
+        let cell = UnitCell::new(
+            Vector3::new(3.0, 0.0, 0.0),
+            Vector3::new(0.0, 3.0, 0.0),
+            Vector3::new(0.0, 0.0, 3.0),
+        )
+        .unwrap();
         let (bins, n_bins, _) = assign_to_bins(&wrapped, &cell, 5.0);
         assert_eq!(n_bins, [1, 1, 1]);
         assert_eq!(bins.len(), 1);
@@ -212,19 +250,51 @@ mod tests {
     }
 
     #[test]
-    fn test_assign_to_bins_boundary() {
-        // L=10, cutoff=5 → n_bins=[2,2,2], bin_size=5.0
-        // Atom at 4.999 → bin 0, atom at 5.0 → bin 1, atom at 9.999 → bin 1 (clamped)
+    fn test_assign_to_bins_triclinic() {
+        // Triclinic cell: a=(5,0,0), b=(4,3,0), c=(0,0,5), cutoff=2
+        // heights: d_a=3.0, d_b=3.0, d_c=5.0  (differ from norms |a|=5, |b|=5, |c|=5)
+        // n_bins = [floor(3/2)=1, floor(3/2)=1, floor(5/2)=2]
+        //   (norm-based would give [2, 2, 2] — wrong)
+        // bin_sizes(frac) = [1.0, 1.0, 0.5]
+        // linear index = bx + 1*(by + 1*bz) = bz
+        // Atom0 frac(0.1, 0.2, 0.1) → bin(0,0,0) → 0
+        // Atom1 frac(0.5, 0.8, 0.7) → bin(0,0,1) → 1
+        // Atom2 frac(0.9, 0.9, 0.3) → bin(0,0,0) → 0
         let wrapped = vec![
-            Vector3::new(4.999, 0.0, 0.0),
-            Vector3::new(5.0, 0.0, 0.0),
-            Vector3::new(9.999, 0.0, 0.0),
+            Vector3::new(0.1, 0.2, 0.1),
+            Vector3::new(0.5, 0.8, 0.7),
+            Vector3::new(0.9, 0.9, 0.3),
         ];
-        let cell = UnitCell {
-            a: 10.0,
-            b: 10.0,
-            c: 10.0,
-        };
+        let cell = UnitCell::new(
+            Vector3::new(5.0, 0.0, 0.0),
+            Vector3::new(4.0, 3.0, 0.0),
+            Vector3::new(0.0, 0.0, 5.0),
+        )
+        .unwrap();
+        let (bins, n_bins, bin_sizes) = assign_to_bins(&wrapped, &cell, 2.0);
+        assert_eq!(n_bins, [1, 1, 2]);
+        assert!((bin_sizes[0] - 1.0).abs() < 1e-10);
+        assert!((bin_sizes[1] - 1.0).abs() < 1e-10);
+        assert!((bin_sizes[2] - 0.5).abs() < 1e-10);
+        assert_eq!(bins[0], vec![0, 2]);
+        assert_eq!(bins[1], vec![1]);
+    }
+
+    #[test]
+    fn test_assign_to_bins_boundary() {
+        // L=10, cutoff=5 → n_bins=[2,2,2], bin_size(frac)=0.5
+        // frac 0.4999 → bin 0, frac 0.5 → bin 1, frac 0.9999 → bin 1 (clamped)
+        let wrapped = vec![
+            Vector3::new(0.4999, 0.0, 0.0),
+            Vector3::new(0.5, 0.0, 0.0),
+            Vector3::new(0.9999, 0.0, 0.0),
+        ];
+        let cell = UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap();
         let (bins, _, _) = assign_to_bins(&wrapped, &cell, 5.0);
         assert_eq!(bins[0], vec![0]);
         assert_eq!(bins[1], vec![1, 2]);
