@@ -81,8 +81,8 @@ mod tests {
     }
 
     #[test]
-    fn non_cubic() {
-        test_neighbors::test_non_cubic(super::build_neighbor_list);
+    fn orthorhombic() {
+        test_neighbors::test_orthorhombic(super::build_neighbor_list);
     }
 
     #[test]
@@ -91,27 +91,62 @@ mod tests {
     }
 
     #[test]
-    fn triclinic_basic() {
-        test_neighbors::test_triclinic_basic(super::build_neighbor_list);
+    fn monoclinic_basic() {
+        test_neighbors::test_monoclinic_basic(super::build_neighbor_list);
     }
 
     #[test]
-    fn triclinic_pbc_corner() {
-        test_neighbors::test_triclinic_pbc_corner(super::build_neighbor_list);
+    fn monoclinic_pbc_corner() {
+        test_neighbors::test_monoclinic_pbc_corner(super::build_neighbor_list);
     }
 
     #[test]
-    fn triclinic_unwrapped() {
-        test_neighbors::test_triclinic_unwrapped(super::build_neighbor_list);
+    fn monoclinic_unwrapped() {
+        test_neighbors::test_monoclinic_unwrapped(super::build_neighbor_list);
     }
 
     #[test]
-    fn triclinic_self_image() {
-        test_neighbors::test_triclinic_self_image(super::build_neighbor_list);
+    fn monoclinic_self_image() {
+        test_neighbors::test_monoclinic_self_image(super::build_neighbor_list);
     }
 
     #[test]
-    fn triclinic_skewed() {
-        test_neighbors::test_triclinic_skewed(super::build_neighbor_list);
+    fn monoclinic_skewed() {
+        test_neighbors::test_monoclinic_skewed(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_full_3d() {
+        test_neighbors::test_triclinic_full_3d(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_full_3d_self_image() {
+        test_neighbors::test_triclinic_full_3d_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn monoclinic_boundary_distance() {
+        test_neighbors::test_monoclinic_boundary_distance(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn monoclinic_left_handed() {
+        test_neighbors::test_monoclinic_left_handed(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_multi_height_replicas() {
+        test_neighbors::test_triclinic_multi_height_replicas(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_multi_atom() {
+        test_neighbors::test_triclinic_multi_atom(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_near_degenerate() {
+        test_neighbors::test_triclinic_near_degenerate(super::build_neighbor_list);
     }
 }
