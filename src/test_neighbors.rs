@@ -14,11 +14,12 @@ pub fn test_basic(build: BuildFn) {
             Vector3::new(5.0, 5.0, 5.0),
             Vector3::new(8.0, 0.0, 0.0),
         ],
-        cell: UnitCell {
-            a: 10.0,
-            b: 10.0,
-            c: 10.0,
-        },
+        cell: UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap(),
     };
     let result = build(&sys, 3.0);
     // Both directions: (0,1), (1,0), (0,3), (3,0)
@@ -33,11 +34,12 @@ pub fn test_basic(build: BuildFn) {
 pub fn test_no_neighbors(build: BuildFn) {
     let sys = System {
         pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(5.0, 5.0, 5.0)],
-        cell: UnitCell {
-            a: 20.0,
-            b: 20.0,
-            c: 20.0,
-        },
+        cell: UnitCell::new(
+            Vector3::new(20.0, 0.0, 0.0),
+            Vector3::new(0.0, 20.0, 0.0),
+            Vector3::new(0.0, 0.0, 20.0),
+        )
+        .unwrap(),
     };
     let result = build(&sys, 1.0);
     assert!(result.is_empty());
@@ -48,11 +50,12 @@ pub fn test_pbc_corner(build: BuildFn) {
     // dist via PBC = sqrt(3) ≈ 1.73
     let sys = System {
         pos: vec![Vector3::new(0.5, 0.5, 0.5), Vector3::new(9.5, 9.5, 9.5)],
-        cell: UnitCell {
-            a: 10.0,
-            b: 10.0,
-            c: 10.0,
-        },
+        cell: UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap(),
     };
     let result = build(&sys, 2.0);
     // Both directions
@@ -68,11 +71,12 @@ pub fn test_self_image(build: BuildFn) {
     // Diagonal images e.g. (3,3,0) at dist=sqrt(18)≈4.24 → outside cutoff
     let sys = System {
         pos: vec![Vector3::new(0.0, 0.0, 0.0)],
-        cell: UnitCell {
-            a: 3.0,
-            b: 3.0,
-            c: 3.0,
-        },
+        cell: UnitCell::new(
+            Vector3::new(3.0, 0.0, 0.0),
+            Vector3::new(0.0, 3.0, 0.0),
+            Vector3::new(0.0, 0.0, 3.0),
+        )
+        .unwrap(),
     };
     let result = build(&sys, 3.0);
     // All neighbors are self-images (i==0, j==0)
@@ -95,11 +99,12 @@ pub fn test_multiple_images(build: BuildFn) {
     // A(0,0,0) B(1,0,0)
     let sys = System {
         pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)],
-        cell: UnitCell {
-            a: 4.0,
-            b: 4.0,
-            c: 4.0,
-        },
+        cell: UnitCell::new(
+            Vector3::new(4.0, 0.0, 0.0),
+            Vector3::new(0.0, 4.0, 0.0),
+            Vector3::new(0.0, 0.0, 4.0),
+        )
+        .unwrap(),
     };
     let result = build(&sys, 5.0);
 
@@ -128,11 +133,12 @@ pub fn test_non_cubic(build: BuildFn) {
     // A(0,0,0) B(1,0,0)
     let sys = System {
         pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)],
-        cell: UnitCell {
-            a: 3.0,
-            b: 10.0,
-            c: 10.0,
-        },
+        cell: UnitCell::new(
+            Vector3::new(3.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap(),
     };
     let result = build(&sys, 3.5);
 
@@ -166,11 +172,12 @@ pub fn test_unwrapped_coordinates(build: BuildFn) {
     //   offset [-1,0,0]: j at (-1,2,2), diff=(-2,1,1), dist=sqrt(6)≈2.45 ✓
     let sys = System {
         pos: vec![Vector3::new(1.0, 1.0, 1.0), Vector3::new(14.0, -8.0, 22.0)],
-        cell: UnitCell {
-            a: 5.0,
-            b: 5.0,
-            c: 5.0,
-        },
+        cell: UnitCell::new(
+            Vector3::new(5.0, 0.0, 0.0),
+            Vector3::new(0.0, 5.0, 0.0),
+            Vector3::new(0.0, 0.0, 5.0),
+        )
+        .unwrap(),
     };
     let result = build(&sys, 3.0);
     assert_eq!(result.len(), 2); // i→j and j→i

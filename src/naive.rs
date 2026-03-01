@@ -2,19 +2,22 @@ use crate::types::{Neighbor, System, Vector3};
 
 pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
     let mut result = Vec::new();
-    let a_replicas = (cutoff / system.cell.a).ceil() as i32;
-    let b_replicas = (cutoff / system.cell.b).ceil() as i32;
-    let c_replicas = (cutoff / system.cell.c).ceil() as i32;
-    // Wrap positions into [0, L) so that ceil(cutoff / L) replicas suffice.
+    let heights = system.cell.get_heights();
+    let a_replicas = (cutoff / heights[0]).ceil() as i32;
+    let b_replicas = (cutoff / heights[1]).ceil() as i32;
+    let c_replicas = (cutoff / heights[2]).ceil() as i32;
+    // Wrap positions into [0, 1) so that ceil(cutoff / L) replicas suffice.
     let wrapped: Vec<Vector3> = system
         .pos
         .iter()
         .map(|p| {
-            Vector3::new(
-                p.x.rem_euclid(system.cell.a),
-                p.y.rem_euclid(system.cell.b),
-                p.z.rem_euclid(system.cell.c),
-            )
+            let f = system.cell.get_fractional(p);
+            let f_wrapped = Vector3::new(
+                f.x.rem_euclid(1.0),
+                f.y.rem_euclid(1.0),
+                f.z.rem_euclid(1.0),
+            );
+            system.cell.get_cartesian(&f_wrapped)
         })
         .collect();
     let n = wrapped.len();
@@ -28,11 +31,9 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                             continue;
                         }
                         let pos_j = wrapped[j]
-                            + Vector3::new(
-                                a_ind as f64 * system.cell.a,
-                                b_ind as f64 * system.cell.b,
-                                c_ind as f64 * system.cell.c,
-                            );
+                            + system.cell.a * a_ind as f64
+                            + system.cell.b * b_ind as f64
+                            + system.cell.c * c_ind as f64;
                         let distance = (pos_j - wrapped[i]).norm();
                         if distance <= cutoff {
                             result.push(Neighbor {
