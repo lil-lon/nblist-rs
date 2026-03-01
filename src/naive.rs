@@ -89,4 +89,29 @@ mod tests {
     fn unwrapped_coordinates() {
         test_neighbors::test_unwrapped_coordinates(super::build_neighbor_list);
     }
+
+    #[test]
+    fn triclinic_basic() {
+        test_neighbors::test_triclinic_basic(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_pbc_corner() {
+        test_neighbors::test_triclinic_pbc_corner(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_unwrapped() {
+        test_neighbors::test_triclinic_unwrapped(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_self_image() {
+        test_neighbors::test_triclinic_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn triclinic_skewed() {
+        test_neighbors::test_triclinic_skewed(super::build_neighbor_list);
+    }
 }
