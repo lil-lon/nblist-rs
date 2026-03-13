@@ -35,6 +35,7 @@ fn simple_cubic(n: usize, a: f64) -> System {
             Vector3::new(0.0, 0.0, l),
         )
         .unwrap(),
+        pbc: [true, true, true],
     }
 }
 

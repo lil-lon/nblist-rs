@@ -14,6 +14,7 @@ fn main() {
             Vector3::new(1.0, 0.5, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let cutoff = 3.0;
 

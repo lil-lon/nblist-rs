@@ -28,6 +28,7 @@ pub fn test_basic(build: BuildFn) {
             Vector3::new(0.0, 0.0, 10.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.0);
     // Both directions: (0,1), (1,0), (0,3), (3,0)
@@ -49,6 +50,7 @@ pub fn test_no_neighbors(build: BuildFn) {
             Vector3::new(0.0, 0.0, 20.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.0);
     assert!(result.is_empty());
@@ -65,6 +67,7 @@ pub fn test_pbc_corner(build: BuildFn) {
             Vector3::new(0.0, 0.0, 10.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 2.0);
     // Both directions
@@ -86,6 +89,7 @@ pub fn test_self_image(build: BuildFn) {
             Vector3::new(0.0, 0.0, 3.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.0);
     // All neighbors are self-images (i==0, j==0)
@@ -114,6 +118,7 @@ pub fn test_multiple_images(build: BuildFn) {
             Vector3::new(0.0, 0.0, 4.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 5.0);
 
@@ -148,6 +153,7 @@ pub fn test_orthorhombic(build: BuildFn) {
             Vector3::new(0.0, 0.0, 10.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.5);
 
@@ -187,6 +193,7 @@ pub fn test_unwrapped_coordinates(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.0);
     assert_eq!(result.len(), 2); // i→j and j→i
@@ -212,6 +219,7 @@ pub fn test_monoclinic_basic(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 2.9);
     assert_eq!(result.len(), 2);
@@ -242,6 +250,7 @@ pub fn test_monoclinic_pbc_corner(build: BuildFn) {
     let sys = System {
         pos: vec![a_cart, b_cart],
         cell,
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.5);
     assert_eq!(result.len(), 2);
@@ -271,6 +280,7 @@ pub fn test_monoclinic_unwrapped(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.5);
     assert_eq!(result.len(), 2);
@@ -296,6 +306,7 @@ pub fn test_monoclinic_self_image(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 5.5);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -343,6 +354,7 @@ pub fn test_monoclinic_skewed(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 2.5);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -385,6 +397,7 @@ pub fn test_triclinic_full_3d(build: BuildFn) {
     let sys = System {
         pos: vec![a_cart, b_cart],
         cell,
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.5);
     assert_eq!(result.len(), 4);
@@ -426,6 +439,7 @@ pub fn test_triclinic_full_3d_self_image(build: BuildFn) {
             Vector3::new(1.0, 1.0, 4.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 4.3);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -461,6 +475,7 @@ pub fn test_monoclinic_boundary_distance(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.0);
     assert_eq!(result.len(), 4);
@@ -509,6 +524,7 @@ pub fn test_monoclinic_left_handed(build: BuildFn) {
     let sys = System {
         pos: vec![a_cart, b_cart],
         cell,
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.5);
     assert_eq!(result.len(), 2);
@@ -539,6 +555,7 @@ pub fn test_triclinic_multi_height_replicas(build: BuildFn) {
             Vector3::new(9.5, 0.0, 1.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.5);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -587,6 +604,7 @@ pub fn test_triclinic_multi_atom(build: BuildFn) {
             Vector3::new(1.0, 1.0, 4.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 2.5);
     assert_eq!(result.len(), 12);
@@ -647,6 +665,7 @@ pub fn test_triclinic_near_degenerate(build: BuildFn) {
             Vector3::new(4.9, 0.0, 0.5),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.1);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -714,6 +733,7 @@ mod tests {
                 cell.get_cartesian(&Vector3::new(0.3, 0.7, 0.4)),
             ],
             cell,
+            pbc: [true, true, true],
         };
         let cutoff = 4.0;
         let naive_result = naive::build_neighbor_list(&sys, cutoff);
