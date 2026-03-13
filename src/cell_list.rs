@@ -34,13 +34,7 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
     let heights = system.cell.get_heights();
     let bin_heights: [f64; 3] = std::array::from_fn(|i| heights[i] * bin_sizes[i]);
     // When bin_size is smaller than cutoff, need to search more than 1 (when cutoff is greater than lattice constant)
-    let search_ranges: [i32; 3] = std::array::from_fn(|i| {
-        if system.pbc[i] {
-            (cutoff / bin_heights[i]).ceil() as i32
-        } else {
-            0
-        }
-    });
+    let search_ranges: [i32; 3] = bin_heights.map(|b| (cutoff / b).ceil() as i32);
 
     let mut result = Vec::new();
     for bz in 0..n_bins[2] as i32 {
@@ -52,22 +46,35 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                 for dz in -search_ranges[2]..=search_ranges[2] {
                     for dy in -search_ranges[1]..=search_ranges[1] {
                         for dx in -search_ranges[0]..=search_ranges[0] {
-                            for &i_idx in i_idxs {
-                                let offset = [
-                                    (bx + dx).div_euclid(n_bins[0] as i32),
-                                    (by + dy).div_euclid(n_bins[1] as i32),
-                                    (bz + dz).div_euclid(n_bins[2] as i32),
-                                ];
+                            let raw = [bx + dx, by + dy, bz + dz];
+                            let mut offset = [0i32; 3];
+                            let mut nb_bins = [0i32; 3];
+                            let mut skip = false;
 
-                                let nb_bins = [
-                                    (bx + dx).rem_euclid(n_bins[0] as i32),
-                                    (by + dy).rem_euclid(n_bins[1] as i32),
-                                    (bz + dz).rem_euclid(n_bins[2] as i32),
-                                ];
-                                let j_idx = nb_bins[0]
-                                    + n_bins[0] as i32
-                                        * (nb_bins[1] + n_bins[1] as i32 * nb_bins[2]);
-                                let j_idxs: &Vec<usize> = &bins[j_idx as usize];
+                            for axis in 0..3 {
+                                let n = n_bins[axis] as i32;
+                                if system.pbc[axis] {
+                                    offset[axis] = raw[axis].div_euclid(n);
+                                    nb_bins[axis] = raw[axis].rem_euclid(n);
+                                } else {
+                                    if raw[axis] < 0 || raw[axis] >= n {
+                                        // only check within the cutoff
+                                        skip = true;
+                                        break;
+                                    }
+                                    nb_bins[axis] = raw[axis];
+                                    offset[axis] = 0;
+                                }
+                            }
+                            if skip {
+                                continue;
+                            }
+
+                            let j_idx = nb_bins[0]
+                                + n_bins[0] as i32 * (nb_bins[1] + n_bins[1] as i32 * nb_bins[2]);
+                            let j_idxs: &Vec<usize> = &bins[j_idx as usize];
+
+                            for &i_idx in i_idxs {
                                 for &j_idx in j_idxs {
                                     if i_idx == j_idx && offset == [0, 0, 0] {
                                         continue;
