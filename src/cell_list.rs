@@ -11,9 +11,21 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
         .map(|p| {
             let f = system.cell.get_fractional(p);
             Vector3::new(
-                f.x.rem_euclid(1.0),
-                f.y.rem_euclid(1.0),
-                f.z.rem_euclid(1.0),
+                if system.pbc[0] {
+                    f.x.rem_euclid(1.0)
+                } else {
+                    f.x
+                },
+                if system.pbc[1] {
+                    f.y.rem_euclid(1.0)
+                } else {
+                    f.y
+                },
+                if system.pbc[2] {
+                    f.z.rem_euclid(1.0)
+                } else {
+                    f.z
+                },
             )
         })
         .collect();
@@ -22,7 +34,13 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
     let heights = system.cell.get_heights();
     let bin_heights: [f64; 3] = std::array::from_fn(|i| heights[i] * bin_sizes[i]);
     // When bin_size is smaller than cutoff, need to search more than 1 (when cutoff is greater than lattice constant)
-    let search_ranges: [i32; 3] = bin_heights.map(|b| (cutoff / b).ceil() as i32);
+    let search_ranges: [i32; 3] = std::array::from_fn(|i| {
+        if system.pbc[i] {
+            (cutoff / bin_heights[i]).ceil() as i32
+        } else {
+            0
+        }
+    });
 
     let mut result = Vec::new();
     for bz in 0..n_bins[2] as i32 {
@@ -211,6 +229,36 @@ mod tests {
     #[test]
     fn triclinic_near_degenerate() {
         test_neighbors::test_triclinic_near_degenerate(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_self_image() {
+        test_neighbors::test_slab_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn wire_self_image() {
+        test_neighbors::test_wire_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_no_images() {
+        test_neighbors::test_isolated_no_images(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_two_atoms() {
+        test_neighbors::test_slab_two_atoms(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_two_atoms() {
+        test_neighbors::test_isolated_two_atoms(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_no_wrap_non_periodic() {
+        test_neighbors::test_slab_no_wrap_non_periodic(super::build_neighbor_list);
     }
 
     // --- assign_to_bins tests (cell list specific) ---
