@@ -867,6 +867,32 @@ pub fn test_slab_no_wrap_non_periodic(build: BuildFn) {
     assert_eq!(a_to_b[0].offset, [0, 0, 0]);
 }
 
+pub fn test_slab_cross_bin_boundary(build: BuildFn) {
+    // [Cubic] pbc=[true,true,false], L=10, cutoff=3.0
+    // n_bins along z = floor(10/3) = 3, bin boundaries at frac 0, 1/3, 2/3, 1
+    //   → Cartesian z = 0, 3.333, 6.667, 10
+    // A(5, 5, 3.3) → frac_z=0.33 → bin 0
+    // B(5, 5, 3.4) → frac_z=0.34 → bin 1
+    // distance = 0.1, well within cutoff
+    // Bug: if search_ranges[2]=0, bin 0 won't look at bin 1 → pair missed
+    let sys = System {
+        pos: vec![Vector3::new(5.0, 5.0, 3.3), Vector3::new(5.0, 5.0, 3.4)],
+        cell: UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap(),
+        pbc: [true, true, false],
+    };
+    let result = build(&sys, 3.0);
+    assert_eq!(result.len(), 2);
+    let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+    assert_eq!(a_to_b.len(), 1);
+    assert_eq!(a_to_b[0].offset, [0, 0, 0]);
+    assert!((a_to_b[0].distance - 0.1).abs() < 1e-10);
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cell_list;

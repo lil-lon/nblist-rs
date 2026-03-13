@@ -203,4 +203,9 @@ mod tests {
     fn slab_no_wrap_non_periodic() {
         test_neighbors::test_slab_no_wrap_non_periodic(super::build_neighbor_list);
     }
+
+    #[test]
+    fn slab_cross_bin_boundary() {
+        test_neighbors::test_slab_cross_bin_boundary(super::build_neighbor_list);
+    }
 }
