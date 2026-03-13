@@ -58,7 +58,7 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                                     nb_bins[axis] = raw[axis].rem_euclid(n);
                                 } else {
                                     if raw[axis] < 0 || raw[axis] >= n {
-                                        // only check within the cutoff
+                                        // only check within the cell for non-pbc axis
                                         skip = true;
                                         break;
                                     }
