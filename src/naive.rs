@@ -173,4 +173,34 @@ mod tests {
     fn triclinic_near_degenerate() {
         test_neighbors::test_triclinic_near_degenerate(super::build_neighbor_list);
     }
+
+    #[test]
+    fn slab_self_image() {
+        test_neighbors::test_slab_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn wire_self_image() {
+        test_neighbors::test_wire_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_no_images() {
+        test_neighbors::test_isolated_no_images(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_two_atoms() {
+        test_neighbors::test_slab_two_atoms(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_two_atoms() {
+        test_neighbors::test_isolated_two_atoms(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_no_wrap_non_periodic() {
+        test_neighbors::test_slab_no_wrap_non_periodic(super::build_neighbor_list);
+    }
 }
