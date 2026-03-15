@@ -140,6 +140,7 @@ impl UnitCell {
 pub struct System {
     pub pos: Vec<Vector3>,
     pub cell: UnitCell,
+    pub pbc: [bool; 3],
 }
 
 #[derive(Debug)]

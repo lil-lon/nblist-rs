@@ -28,6 +28,7 @@ pub fn test_basic(build: BuildFn) {
             Vector3::new(0.0, 0.0, 10.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.0);
     // Both directions: (0,1), (1,0), (0,3), (3,0)
@@ -49,6 +50,7 @@ pub fn test_no_neighbors(build: BuildFn) {
             Vector3::new(0.0, 0.0, 20.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.0);
     assert!(result.is_empty());
@@ -65,6 +67,7 @@ pub fn test_pbc_corner(build: BuildFn) {
             Vector3::new(0.0, 0.0, 10.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 2.0);
     // Both directions
@@ -86,6 +89,7 @@ pub fn test_self_image(build: BuildFn) {
             Vector3::new(0.0, 0.0, 3.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.0);
     // All neighbors are self-images (i==0, j==0)
@@ -114,6 +118,7 @@ pub fn test_multiple_images(build: BuildFn) {
             Vector3::new(0.0, 0.0, 4.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 5.0);
 
@@ -148,6 +153,7 @@ pub fn test_orthorhombic(build: BuildFn) {
             Vector3::new(0.0, 0.0, 10.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.5);
 
@@ -187,6 +193,7 @@ pub fn test_unwrapped_coordinates(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.0);
     assert_eq!(result.len(), 2); // i→j and j→i
@@ -212,6 +219,7 @@ pub fn test_monoclinic_basic(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 2.9);
     assert_eq!(result.len(), 2);
@@ -242,6 +250,7 @@ pub fn test_monoclinic_pbc_corner(build: BuildFn) {
     let sys = System {
         pos: vec![a_cart, b_cart],
         cell,
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.5);
     assert_eq!(result.len(), 2);
@@ -271,6 +280,7 @@ pub fn test_monoclinic_unwrapped(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.5);
     assert_eq!(result.len(), 2);
@@ -296,6 +306,7 @@ pub fn test_monoclinic_self_image(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 5.5);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -343,6 +354,7 @@ pub fn test_monoclinic_skewed(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 2.5);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -385,6 +397,7 @@ pub fn test_triclinic_full_3d(build: BuildFn) {
     let sys = System {
         pos: vec![a_cart, b_cart],
         cell,
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.5);
     assert_eq!(result.len(), 4);
@@ -426,6 +439,7 @@ pub fn test_triclinic_full_3d_self_image(build: BuildFn) {
             Vector3::new(1.0, 1.0, 4.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 4.3);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -461,6 +475,7 @@ pub fn test_monoclinic_boundary_distance(build: BuildFn) {
             Vector3::new(0.0, 0.0, 5.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 3.0);
     assert_eq!(result.len(), 4);
@@ -509,6 +524,7 @@ pub fn test_monoclinic_left_handed(build: BuildFn) {
     let sys = System {
         pos: vec![a_cart, b_cart],
         cell,
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.5);
     assert_eq!(result.len(), 2);
@@ -539,6 +555,7 @@ pub fn test_triclinic_multi_height_replicas(build: BuildFn) {
             Vector3::new(9.5, 0.0, 1.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.5);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -587,6 +604,7 @@ pub fn test_triclinic_multi_atom(build: BuildFn) {
             Vector3::new(1.0, 1.0, 4.0),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 2.5);
     assert_eq!(result.len(), 12);
@@ -647,6 +665,7 @@ pub fn test_triclinic_near_degenerate(build: BuildFn) {
             Vector3::new(4.9, 0.0, 0.5),
         )
         .unwrap(),
+        pbc: [true, true, true],
     };
     let result = build(&sys, 1.1);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
@@ -688,6 +707,192 @@ pub fn test_triclinic_near_degenerate(build: BuildFn) {
     }
 }
 
+pub fn test_slab_self_image(build: BuildFn) {
+    // [Cubic] pbc=[true,true,false] — slab: periodic in a,b only
+    // Single atom at origin, L=3, cutoff=3.0
+    // Self-images along a (±1,0,0) and b (0,±1,0) → 4 neighbors
+    // No c-axis images because pbc[2]=false
+    let sys = System {
+        pos: vec![Vector3::new(0.0, 0.0, 0.0)],
+        cell: UnitCell::new(
+            Vector3::new(3.0, 0.0, 0.0),
+            Vector3::new(0.0, 3.0, 0.0),
+            Vector3::new(0.0, 0.0, 3.0),
+        )
+        .unwrap(),
+        pbc: [true, true, false],
+    };
+    let result = build(&sys, 3.0);
+    assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
+    assert_eq!(result.len(), 4);
+    assert!(result.iter().all(|n| (n.distance - 3.0).abs() < 1e-10));
+    let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
+    assert!(offsets.contains(&[1, 0, 0]));
+    assert!(offsets.contains(&[-1, 0, 0]));
+    assert!(offsets.contains(&[0, 1, 0]));
+    assert!(offsets.contains(&[0, -1, 0]));
+    // c-axis images must NOT appear
+    assert!(!offsets.contains(&[0, 0, 1]));
+    assert!(!offsets.contains(&[0, 0, -1]));
+}
+
+pub fn test_wire_self_image(build: BuildFn) {
+    // [Cubic] pbc=[true,false,false] — wire: periodic in a only
+    // Single atom at origin, L=3, cutoff=3.0
+    // Self-images along a only → 2 neighbors
+    let sys = System {
+        pos: vec![Vector3::new(0.0, 0.0, 0.0)],
+        cell: UnitCell::new(
+            Vector3::new(3.0, 0.0, 0.0),
+            Vector3::new(0.0, 3.0, 0.0),
+            Vector3::new(0.0, 0.0, 3.0),
+        )
+        .unwrap(),
+        pbc: [true, false, false],
+    };
+    let result = build(&sys, 3.0);
+    assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
+    assert_eq!(result.len(), 2);
+    assert!(result.iter().all(|n| (n.distance - 3.0).abs() < 1e-10));
+    let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
+    assert!(offsets.contains(&[1, 0, 0]));
+    assert!(offsets.contains(&[-1, 0, 0]));
+}
+
+pub fn test_isolated_no_images(build: BuildFn) {
+    // [Cubic] pbc=[false,false,false] — isolated: no periodicity
+    // Single atom at origin, L=3, cutoff=3.0
+    // No self-images at all → 0 neighbors
+    let sys = System {
+        pos: vec![Vector3::new(0.0, 0.0, 0.0)],
+        cell: UnitCell::new(
+            Vector3::new(3.0, 0.0, 0.0),
+            Vector3::new(0.0, 3.0, 0.0),
+            Vector3::new(0.0, 0.0, 3.0),
+        )
+        .unwrap(),
+        pbc: [false, false, false],
+    };
+    let result = build(&sys, 3.0);
+    assert!(result.is_empty());
+}
+
+pub fn test_slab_two_atoms(build: BuildFn) {
+    // [Cubic] pbc=[true,true,false] — slab, 10x10x10, cutoff=2.0
+    // A(0.5,0.5,0.5), B(9.5,0.5,0.5)
+    // a-axis wraps: diff_x = -1.0, dist = 1.0 ✓
+    // C(0.5,0.5,9.5) — c-axis does NOT wrap: diff_z = 9.0, dist = 9.0 → NOT neighbor
+    let sys = System {
+        pos: vec![
+            Vector3::new(0.5, 0.5, 0.5),
+            Vector3::new(9.5, 0.5, 0.5),
+            Vector3::new(0.5, 0.5, 9.5),
+        ],
+        cell: UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap(),
+        pbc: [true, true, false],
+    };
+    let result = build(&sys, 2.0);
+    // A↔B via a-axis PBC: 2 pairs
+    assert_eq!(result.len(), 2);
+    let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
+    assert!(pairs.contains(&(0, 1)));
+    assert!(pairs.contains(&(1, 0)));
+    // A-C should NOT be neighbors (c-axis non-periodic, dist=9.0)
+    assert!(!pairs.contains(&(0, 2)));
+    assert!(!pairs.contains(&(2, 0)));
+}
+
+pub fn test_isolated_two_atoms(build: BuildFn) {
+    // [Cubic] pbc=[false,false,false] — isolated, L=10, cutoff=3.0
+    // A(1,1,1), B(3,1,1): direct dist=2.0 ✓ (no wrapping needed)
+    // C(9,1,1): direct dist=8.0 → NOT neighbor (no PBC wrapping)
+    //   (with full PBC, dist via wrapping would be 2.0)
+    let sys = System {
+        pos: vec![
+            Vector3::new(1.0, 1.0, 1.0),
+            Vector3::new(3.0, 1.0, 1.0),
+            Vector3::new(9.0, 1.0, 1.0),
+        ],
+        cell: UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap(),
+        pbc: [false, false, false],
+    };
+    let result = build(&sys, 3.0);
+    // Only A↔B (direct distance 2.0)
+    assert_eq!(result.len(), 2);
+    let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+    assert_eq!(a_to_b.len(), 1);
+    assert_eq!(a_to_b[0].offset, [0, 0, 0]);
+    assert!((a_to_b[0].distance - 2.0).abs() < 1e-10);
+    // C should NOT appear as neighbor of A
+    assert!(result.iter().all(|n| n.i != 2 || n.j != 0));
+    assert!(result.iter().all(|n| n.i != 0 || n.j != 2));
+}
+
+pub fn test_slab_no_wrap_non_periodic(build: BuildFn) {
+    // [Cubic] pbc=[true,true,false], L=5, cutoff=2.0
+    // Atom at frac=(0.1, 0.1, 1.5) — outside cell along c-axis
+    // With pbc[2]=false, c-coordinate should NOT be wrapped
+    // So Cartesian z = 7.5 (stays at 7.5, not wrapped to 2.5)
+    // Another atom at (0.5, 0.5, 7.0)
+    // Direct dist = sqrt(0.16+0.16+0.25) = sqrt(0.57) ≈ 0.75 ✓
+    // If c were wrapped: atom0 would be at z=2.5, dist to atom1 = sqrt(0.16+0.16+20.25) → miss
+    let cell = UnitCell::new(
+        Vector3::new(5.0, 0.0, 0.0),
+        Vector3::new(0.0, 5.0, 0.0),
+        Vector3::new(0.0, 0.0, 5.0),
+    )
+    .unwrap();
+    let sys = System {
+        pos: vec![
+            cell.get_cartesian(&Vector3::new(0.1, 0.1, 1.5)),
+            Vector3::new(0.5, 0.5, 7.0),
+        ],
+        cell,
+        pbc: [true, true, false],
+    };
+    let result = build(&sys, 2.0);
+    assert_eq!(result.len(), 2);
+    let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+    assert_eq!(a_to_b.len(), 1);
+    assert_eq!(a_to_b[0].offset, [0, 0, 0]);
+}
+
+pub fn test_slab_cross_bin_boundary(build: BuildFn) {
+    // [Cubic] pbc=[true,true,false], L=10, cutoff=3.0
+    // n_bins along z = floor(10/3) = 3, bin boundaries at frac 0, 1/3, 2/3, 1
+    //   → Cartesian z = 0, 3.333, 6.667, 10
+    // A(5, 5, 3.3) → frac_z=0.33 → bin 0
+    // B(5, 5, 3.4) → frac_z=0.34 → bin 1
+    // distance = 0.1, well within cutoff
+    // Bug: if search_ranges[2]=0, bin 0 won't look at bin 1 → pair missed
+    let sys = System {
+        pos: vec![Vector3::new(5.0, 5.0, 3.3), Vector3::new(5.0, 5.0, 3.4)],
+        cell: UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap(),
+        pbc: [true, true, false],
+    };
+    let result = build(&sys, 3.0);
+    assert_eq!(result.len(), 2);
+    let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+    assert_eq!(a_to_b.len(), 1);
+    assert_eq!(a_to_b[0].offset, [0, 0, 0]);
+    assert!((a_to_b[0].distance - 0.1).abs() < 1e-10);
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cell_list;
@@ -714,6 +919,7 @@ mod tests {
                 cell.get_cartesian(&Vector3::new(0.3, 0.7, 0.4)),
             ],
             cell,
+            pbc: [true, true, true],
         };
         let cutoff = 4.0;
         let naive_result = naive::build_neighbor_list(&sys, cutoff);

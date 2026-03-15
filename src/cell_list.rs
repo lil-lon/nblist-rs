@@ -11,9 +11,21 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
         .map(|p| {
             let f = system.cell.get_fractional(p);
             Vector3::new(
-                f.x.rem_euclid(1.0),
-                f.y.rem_euclid(1.0),
-                f.z.rem_euclid(1.0),
+                if system.pbc[0] {
+                    f.x.rem_euclid(1.0)
+                } else {
+                    f.x
+                },
+                if system.pbc[1] {
+                    f.y.rem_euclid(1.0)
+                } else {
+                    f.y
+                },
+                if system.pbc[2] {
+                    f.z.rem_euclid(1.0)
+                } else {
+                    f.z
+                },
             )
         })
         .collect();
@@ -34,22 +46,35 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                 for dz in -search_ranges[2]..=search_ranges[2] {
                     for dy in -search_ranges[1]..=search_ranges[1] {
                         for dx in -search_ranges[0]..=search_ranges[0] {
-                            for &i_idx in i_idxs {
-                                let offset = [
-                                    (bx + dx).div_euclid(n_bins[0] as i32),
-                                    (by + dy).div_euclid(n_bins[1] as i32),
-                                    (bz + dz).div_euclid(n_bins[2] as i32),
-                                ];
+                            let raw = [bx + dx, by + dy, bz + dz];
+                            let mut offset = [0i32; 3];
+                            let mut nb_bins = [0i32; 3];
+                            let mut skip = false;
 
-                                let nb_bins = [
-                                    (bx + dx).rem_euclid(n_bins[0] as i32),
-                                    (by + dy).rem_euclid(n_bins[1] as i32),
-                                    (bz + dz).rem_euclid(n_bins[2] as i32),
-                                ];
-                                let j_idx = nb_bins[0]
-                                    + n_bins[0] as i32
-                                        * (nb_bins[1] + n_bins[1] as i32 * nb_bins[2]);
-                                let j_idxs: &Vec<usize> = &bins[j_idx as usize];
+                            for axis in 0..3 {
+                                let n = n_bins[axis] as i32;
+                                if system.pbc[axis] {
+                                    offset[axis] = raw[axis].div_euclid(n);
+                                    nb_bins[axis] = raw[axis].rem_euclid(n);
+                                } else {
+                                    if raw[axis] < 0 || raw[axis] >= n {
+                                        // only check within the cell for non-pbc axis
+                                        skip = true;
+                                        break;
+                                    }
+                                    nb_bins[axis] = raw[axis];
+                                    offset[axis] = 0;
+                                }
+                            }
+                            if skip {
+                                continue;
+                            }
+
+                            let j_idx = nb_bins[0]
+                                + n_bins[0] as i32 * (nb_bins[1] + n_bins[1] as i32 * nb_bins[2]);
+                            let j_idxs: &Vec<usize> = &bins[j_idx as usize];
+
+                            for &i_idx in i_idxs {
                                 for &j_idx in j_idxs {
                                     if i_idx == j_idx && offset == [0, 0, 0] {
                                         continue;
@@ -211,6 +236,41 @@ mod tests {
     #[test]
     fn triclinic_near_degenerate() {
         test_neighbors::test_triclinic_near_degenerate(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_self_image() {
+        test_neighbors::test_slab_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn wire_self_image() {
+        test_neighbors::test_wire_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_no_images() {
+        test_neighbors::test_isolated_no_images(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_two_atoms() {
+        test_neighbors::test_slab_two_atoms(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_two_atoms() {
+        test_neighbors::test_isolated_two_atoms(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_no_wrap_non_periodic() {
+        test_neighbors::test_slab_no_wrap_non_periodic(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_cross_bin_boundary() {
+        test_neighbors::test_slab_cross_bin_boundary(super::build_neighbor_list);
     }
 
     // --- assign_to_bins tests (cell list specific) ---

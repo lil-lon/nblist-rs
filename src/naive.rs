@@ -3,9 +3,21 @@ use crate::types::{Neighbor, System, Vector3};
 pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
     let mut result = Vec::new();
     let heights = system.cell.get_heights();
-    let a_replicas = (cutoff / heights[0]).ceil() as i32;
-    let b_replicas = (cutoff / heights[1]).ceil() as i32;
-    let c_replicas = (cutoff / heights[2]).ceil() as i32;
+    let a_replicas = if system.pbc[0] {
+        (cutoff / heights[0]).ceil() as i32
+    } else {
+        0
+    };
+    let b_replicas = if system.pbc[1] {
+        (cutoff / heights[1]).ceil() as i32
+    } else {
+        0
+    };
+    let c_replicas = if system.pbc[2] {
+        (cutoff / heights[2]).ceil() as i32
+    } else {
+        0
+    };
     // Wrap positions into [0, 1) so that ceil(cutoff / L) replicas suffice.
     let wrapped: Vec<Vector3> = system
         .pos
@@ -13,9 +25,21 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
         .map(|p| {
             let f = system.cell.get_fractional(p);
             let f_wrapped = Vector3::new(
-                f.x.rem_euclid(1.0),
-                f.y.rem_euclid(1.0),
-                f.z.rem_euclid(1.0),
+                if system.pbc[0] {
+                    f.x.rem_euclid(1.0)
+                } else {
+                    f.x
+                },
+                if system.pbc[1] {
+                    f.y.rem_euclid(1.0)
+                } else {
+                    f.y
+                },
+                if system.pbc[2] {
+                    f.z.rem_euclid(1.0)
+                } else {
+                    f.z
+                },
             );
             system.cell.get_cartesian(&f_wrapped)
         })
@@ -148,5 +172,40 @@ mod tests {
     #[test]
     fn triclinic_near_degenerate() {
         test_neighbors::test_triclinic_near_degenerate(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_self_image() {
+        test_neighbors::test_slab_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn wire_self_image() {
+        test_neighbors::test_wire_self_image(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_no_images() {
+        test_neighbors::test_isolated_no_images(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_two_atoms() {
+        test_neighbors::test_slab_two_atoms(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_two_atoms() {
+        test_neighbors::test_isolated_two_atoms(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_no_wrap_non_periodic() {
+        test_neighbors::test_slab_no_wrap_non_periodic(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn slab_cross_bin_boundary() {
+        test_neighbors::test_slab_cross_bin_boundary(super::build_neighbor_list);
     }
 }
