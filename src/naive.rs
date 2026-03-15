@@ -208,4 +208,9 @@ mod tests {
     fn slab_cross_bin_boundary() {
         test_neighbors::test_slab_cross_bin_boundary(super::build_neighbor_list);
     }
+
+    #[test]
+    fn isolated_atoms_outside_cell() {
+        test_neighbors::test_isolated_atoms_outside_cell(super::build_neighbor_list);
+    }
 }
