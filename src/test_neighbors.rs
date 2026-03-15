@@ -893,6 +893,31 @@ pub fn test_slab_cross_bin_boundary(build: BuildFn) {
     assert!((a_to_b[0].distance - 0.1).abs() < 1e-10);
 }
 
+pub fn test_isolated_atoms_outside_cell(build: BuildFn) {
+    // [Cubic] pbc=[false,false,false], L=10, cutoff=2.0
+    // A at frac(-0.5, 0.5, 0.5) → Cartesian(-5, 5, 5) — outside cell
+    // B at frac(-0.3, 0.5, 0.5) → Cartesian(-3, 5, 5) — outside cell
+    // Direct distance = 2.0, within cutoff
+    // Both atoms are outside the cell on the negative side.
+    // Without bin index clamping, this would panic or produce wrong results.
+    let sys = System {
+        pos: vec![Vector3::new(-5.0, 5.0, 5.0), Vector3::new(-3.0, 5.0, 5.0)],
+        cell: UnitCell::new(
+            Vector3::new(10.0, 0.0, 0.0),
+            Vector3::new(0.0, 10.0, 0.0),
+            Vector3::new(0.0, 0.0, 10.0),
+        )
+        .unwrap(),
+        pbc: [false, false, false],
+    };
+    let result = build(&sys, 2.0);
+    assert_eq!(result.len(), 2);
+    let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
+    assert_eq!(a_to_b.len(), 1);
+    assert_eq!(a_to_b[0].offset, [0, 0, 0]);
+    assert!((a_to_b[0].distance - 2.0).abs() < 1e-10);
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cell_list;

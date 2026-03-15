@@ -114,9 +114,15 @@ fn assign_to_bins(
     cutoff: f64,
 ) -> (Vec<Vec<usize>>, [usize; 3], [f64; 3]) {
     fn get_bin_idx(pos: &Vector3, bin_sizes: [f64; 3], n_bins: [usize; 3]) -> usize {
-        let x_bin_idx = (pos.x / bin_sizes[0]).floor().min((n_bins[0] - 1) as f64) as usize;
-        let y_bin_idx = (pos.y / bin_sizes[1]).floor().min((n_bins[1] - 1) as f64) as usize;
-        let z_bin_idx = (pos.z / bin_sizes[2]).floor().min((n_bins[2] - 1) as f64) as usize;
+        let x_bin_idx = (pos.x / bin_sizes[0])
+            .floor()
+            .clamp(0.0, (n_bins[0] - 1) as f64) as usize;
+        let y_bin_idx = (pos.y / bin_sizes[1])
+            .floor()
+            .clamp(0.0, (n_bins[1] - 1) as f64) as usize;
+        let z_bin_idx = (pos.z / bin_sizes[2])
+            .floor()
+            .clamp(0.0, (n_bins[2] - 1) as f64) as usize;
         x_bin_idx + n_bins[0] * (y_bin_idx + n_bins[1] * z_bin_idx)
     }
 
@@ -271,6 +277,11 @@ mod tests {
     #[test]
     fn slab_cross_bin_boundary() {
         test_neighbors::test_slab_cross_bin_boundary(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn isolated_atoms_outside_cell() {
+        test_neighbors::test_isolated_atoms_outside_cell(super::build_neighbor_list);
     }
 
     // --- assign_to_bins tests (cell list specific) ---
