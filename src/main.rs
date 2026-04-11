@@ -18,9 +18,12 @@ fn main() {
     };
     let cutoff = 3.0;
 
-    let naive_result = nblist::naive::build_neighbor_list(&sys, cutoff);
+    let naive_result = nblist::naive::build_neighbor_list(&sys, cutoff, false);
     println!("Naive: {} neighbors", naive_result.len());
 
-    let cell_list_result = nblist::cell_list::build_neighbor_list(&sys, cutoff);
+    let cell_list_result = nblist::cell_list::build_neighbor_list(&sys, cutoff, false);
     println!("Cell list: {} neighbors", cell_list_result.len());
+
+    let cell_list_half = nblist::cell_list::build_neighbor_list(&sys, cutoff, true);
+    println!("Cell list (half): {} neighbors", cell_list_half.len());
 }
