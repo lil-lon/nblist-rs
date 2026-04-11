@@ -1,6 +1,13 @@
-use crate::types::{Neighbor, System, Vector3};
+use crate::types::{Neighbor, System, Vector3, is_half_canonical_pair};
 
-pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
+/// Build a neighbor list within `cutoff` using an O(N²) all-pairs scan over
+/// periodic images.
+///
+/// When `half` is `false`, each physical pair appears twice — as `(i, j, offset)`
+/// and `(j, i, -offset)`. When `half` is `true`, only one canonical representative
+/// per pair is returned (`i < j`, or for self-images `i == j` the lexicographically
+/// positive offset). See [`Neighbor::is_half_canonical`] for the exact rule.
+pub fn build_neighbor_list(system: &System, cutoff: f64, half: bool) -> Vec<Neighbor> {
     let mut result = Vec::new();
     let heights = system.cell.get_heights();
     let a_replicas = if system.pbc[0] {
@@ -54,6 +61,10 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                         if i == j && (a_ind, b_ind, c_ind) == (0, 0, 0) {
                             continue;
                         }
+                        let offset = [a_ind, b_ind, c_ind];
+                        if half && !is_half_canonical_pair(i, j, offset) {
+                            continue;
+                        }
                         let pos_j = wrapped[j]
                             + system.cell.a * a_ind as f64
                             + system.cell.b * b_ind as f64
@@ -63,7 +74,7 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                             result.push(Neighbor {
                                 i,
                                 j,
-                                offset: [a_ind, b_ind, c_ind],
+                                offset,
                                 distance,
                             })
                         }
@@ -212,5 +223,10 @@ mod tests {
     #[test]
     fn isolated_atoms_outside_cell() {
         test_neighbors::test_isolated_atoms_outside_cell(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn half_neighbor_list() {
+        test_neighbors::test_half_neighbor_list(super::build_neighbor_list);
     }
 }

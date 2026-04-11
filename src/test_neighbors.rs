@@ -1,6 +1,6 @@
 use crate::types::{Neighbor, System, UnitCell, Vector3};
 
-pub type BuildFn = fn(&System, f64) -> Vec<Neighbor>;
+pub type BuildFn = fn(&System, f64, bool) -> Vec<Neighbor>;
 
 /// Helper to sort neighbors for deterministic comparison.
 fn sorted_neighbors(neighbors: &[Neighbor]) -> Vec<(usize, usize, [i32; 3])> {
@@ -30,7 +30,7 @@ pub fn test_basic(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     // Both directions: (0,1), (1,0), (0,3), (3,0)
     let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
     assert!(pairs.contains(&(0, 1)));
@@ -52,7 +52,7 @@ pub fn test_no_neighbors(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 1.0);
+    let result = build(&sys, 1.0, false);
     assert!(result.is_empty());
 }
 
@@ -69,7 +69,7 @@ pub fn test_pbc_corner(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 2.0);
+    let result = build(&sys, 2.0, false);
     // Both directions
     let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
     assert_eq!(pairs.len(), 2);
@@ -91,7 +91,7 @@ pub fn test_self_image(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     // All neighbors are self-images (i==0, j==0)
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
     assert_eq!(result.len(), 6);
@@ -120,7 +120,7 @@ pub fn test_multiple_images(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 5.0);
+    let result = build(&sys, 5.0, false);
 
     // Check A→B has multiple offsets
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
@@ -155,7 +155,7 @@ pub fn test_orthorhombic(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 3.5);
+    let result = build(&sys, 3.5, false);
 
     // A→B: offset [0,0,0] (dist=1) and [-1,0,0] (dist=2)
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
@@ -195,7 +195,7 @@ pub fn test_unwrapped_coordinates(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     assert_eq!(result.len(), 2); // i→j and j→i
     let i_to_j: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
     assert_eq!(i_to_j.len(), 1);
@@ -221,7 +221,7 @@ pub fn test_monoclinic_basic(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 2.9);
+    let result = build(&sys, 2.9, false);
     assert_eq!(result.len(), 2);
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
     assert_eq!(a_to_b.len(), 1);
@@ -252,7 +252,7 @@ pub fn test_monoclinic_pbc_corner(build: BuildFn) {
         cell,
         pbc: [true, true, true],
     };
-    let result = build(&sys, 1.5);
+    let result = build(&sys, 1.5, false);
     assert_eq!(result.len(), 2);
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
     assert_eq!(a_to_b.len(), 1);
@@ -282,7 +282,7 @@ pub fn test_monoclinic_unwrapped(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 1.5);
+    let result = build(&sys, 1.5, false);
     assert_eq!(result.len(), 2);
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
     assert_eq!(a_to_b.len(), 1);
@@ -308,7 +308,7 @@ pub fn test_monoclinic_self_image(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 5.5);
+    let result = build(&sys, 5.5, false);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
     assert_eq!(result.len(), 6);
     let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
@@ -356,7 +356,7 @@ pub fn test_monoclinic_skewed(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 2.5);
+    let result = build(&sys, 2.5, false);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
     assert_eq!(result.len(), 4);
     let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
@@ -399,7 +399,7 @@ pub fn test_triclinic_full_3d(build: BuildFn) {
         cell,
         pbc: [true, true, true],
     };
-    let result = build(&sys, 3.5);
+    let result = build(&sys, 3.5, false);
     assert_eq!(result.len(), 4);
 
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
@@ -441,7 +441,7 @@ pub fn test_triclinic_full_3d_self_image(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 4.3);
+    let result = build(&sys, 4.3, false);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
     assert_eq!(result.len(), 6);
     let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
@@ -477,7 +477,7 @@ pub fn test_monoclinic_boundary_distance(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     assert_eq!(result.len(), 4);
 
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
@@ -526,7 +526,7 @@ pub fn test_monoclinic_left_handed(build: BuildFn) {
         cell,
         pbc: [true, true, true],
     };
-    let result = build(&sys, 1.5);
+    let result = build(&sys, 1.5, false);
     assert_eq!(result.len(), 2);
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
     assert_eq!(a_to_b.len(), 1);
@@ -557,7 +557,7 @@ pub fn test_triclinic_multi_height_replicas(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 1.5);
+    let result = build(&sys, 1.5, false);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
     assert_eq!(result.len(), 6);
     let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
@@ -606,7 +606,7 @@ pub fn test_triclinic_multi_atom(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 2.5);
+    let result = build(&sys, 2.5, false);
     assert_eq!(result.len(), 12);
 
     // 0→1
@@ -667,7 +667,7 @@ pub fn test_triclinic_near_degenerate(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, true],
     };
-    let result = build(&sys, 1.1);
+    let result = build(&sys, 1.1, false);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
     assert_eq!(result.len(), 12);
     let offsets: Vec<[i32; 3]> = result.iter().map(|n| n.offset).collect();
@@ -722,7 +722,7 @@ pub fn test_slab_self_image(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, false],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
     assert_eq!(result.len(), 4);
     assert!(result.iter().all(|n| (n.distance - 3.0).abs() < 1e-10));
@@ -750,7 +750,7 @@ pub fn test_wire_self_image(build: BuildFn) {
         .unwrap(),
         pbc: [true, false, false],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     assert!(result.iter().all(|n| n.i == 0 && n.j == 0));
     assert_eq!(result.len(), 2);
     assert!(result.iter().all(|n| (n.distance - 3.0).abs() < 1e-10));
@@ -773,7 +773,7 @@ pub fn test_isolated_no_images(build: BuildFn) {
         .unwrap(),
         pbc: [false, false, false],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     assert!(result.is_empty());
 }
 
@@ -796,7 +796,7 @@ pub fn test_slab_two_atoms(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, false],
     };
-    let result = build(&sys, 2.0);
+    let result = build(&sys, 2.0, false);
     // A↔B via a-axis PBC: 2 pairs
     assert_eq!(result.len(), 2);
     let pairs: Vec<(usize, usize)> = result.iter().map(|n| (n.i, n.j)).collect();
@@ -826,7 +826,7 @@ pub fn test_isolated_two_atoms(build: BuildFn) {
         .unwrap(),
         pbc: [false, false, false],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     // Only A↔B (direct distance 2.0)
     assert_eq!(result.len(), 2);
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
@@ -860,7 +860,7 @@ pub fn test_slab_no_wrap_non_periodic(build: BuildFn) {
         cell,
         pbc: [true, true, false],
     };
-    let result = build(&sys, 2.0);
+    let result = build(&sys, 2.0, false);
     assert_eq!(result.len(), 2);
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
     assert_eq!(a_to_b.len(), 1);
@@ -885,7 +885,7 @@ pub fn test_slab_cross_bin_boundary(build: BuildFn) {
         .unwrap(),
         pbc: [true, true, false],
     };
-    let result = build(&sys, 3.0);
+    let result = build(&sys, 3.0, false);
     assert_eq!(result.len(), 2);
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
     assert_eq!(a_to_b.len(), 1);
@@ -910,12 +910,187 @@ pub fn test_isolated_atoms_outside_cell(build: BuildFn) {
         .unwrap(),
         pbc: [false, false, false],
     };
-    let result = build(&sys, 2.0);
+    let result = build(&sys, 2.0, false);
     assert_eq!(result.len(), 2);
     let a_to_b: Vec<&Neighbor> = result.iter().filter(|n| n.i == 0 && n.j == 1).collect();
     assert_eq!(a_to_b.len(), 1);
     assert_eq!(a_to_b[0].offset, [0, 0, 0]);
     assert!((a_to_b[0].distance - 2.0).abs() < 1e-10);
+}
+
+/// Shared check: given a full and half list for the same system, verify that
+/// the half list is exactly the canonical half of the full list.
+fn verify_half_invariants(full: &[Neighbor], half: &[Neighbor]) {
+    // Every half entry must be canonical.
+    for n in half {
+        assert!(
+            n.is_half_canonical(),
+            "non-canonical entry in half list: (i={}, j={}, offset={:?})",
+            n.i,
+            n.j,
+            n.offset,
+        );
+    }
+
+    // In a full list, every physical pair appears twice, so the length must be even
+    // and the half list must be exactly half of it.
+    assert_eq!(full.len() % 2, 0, "full list length ({}) is odd", full.len());
+    assert_eq!(
+        half.len() * 2,
+        full.len(),
+        "half list length ({}) is not half of full ({})",
+        half.len(),
+        full.len(),
+    );
+
+    // The canonical entries extracted from the full list must match the half list exactly.
+    let mut expected: Vec<(usize, usize, [i32; 3])> = full
+        .iter()
+        .filter(|n| n.is_half_canonical())
+        .map(|n| (n.i, n.j, n.offset))
+        .collect();
+    expected.sort();
+    assert_eq!(
+        sorted_neighbors(half),
+        expected,
+        "half list does not match canonical entries of full list",
+    );
+
+    // Distances must match between full and half for each canonical pair.
+    for hn in half {
+        let fne = full
+            .iter()
+            .find(|fne| fne.i == hn.i && fne.j == hn.j && fne.offset == hn.offset)
+            .expect("half pair not found in full list");
+        assert!(
+            (fne.distance - hn.distance).abs() < 1e-12,
+            "distance mismatch for (i={}, j={}, offset={:?}): full={}, half={}",
+            hn.i,
+            hn.j,
+            hn.offset,
+            fne.distance,
+            hn.distance,
+        );
+    }
+}
+
+/// Comprehensive half-neighbor-list test suite. Runs `build` in both full and half
+/// mode over several representative systems and verifies the half-list invariants.
+pub fn test_half_neighbor_list(build: BuildFn) {
+    // --- Case 1: small cubic system with cross-image pairs ---
+    {
+        let sys = System {
+            pos: vec![
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(2.0, 0.0, 0.0),
+                Vector3::new(5.0, 5.0, 5.0),
+                Vector3::new(8.0, 0.0, 0.0),
+            ],
+            cell: UnitCell::new(
+                Vector3::new(10.0, 0.0, 0.0),
+                Vector3::new(0.0, 10.0, 0.0),
+                Vector3::new(0.0, 0.0, 10.0),
+            )
+            .unwrap(),
+            pbc: [true, true, true],
+        };
+        let full = build(&sys, 3.0, false);
+        let half = build(&sys, 3.0, true);
+        verify_half_invariants(&full, &half);
+        // Full has (0,1),(1,0),(0,3),(3,0) = 4; half keeps (0,1) and (0,3).
+        assert_eq!(full.len(), 4);
+        assert_eq!(half.len(), 2);
+        let half_pairs: Vec<(usize, usize)> = half.iter().map(|n| (n.i, n.j)).collect();
+        assert!(half_pairs.contains(&(0, 1)));
+        assert!(half_pairs.contains(&(0, 3)));
+    }
+
+    // --- Case 2: single atom with face-adjacent self-images (cubic) ---
+    {
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0)],
+            cell: UnitCell::new(
+                Vector3::new(3.0, 0.0, 0.0),
+                Vector3::new(0.0, 3.0, 0.0),
+                Vector3::new(0.0, 0.0, 3.0),
+            )
+            .unwrap(),
+            pbc: [true, true, true],
+        };
+        let full = build(&sys, 3.0, false);
+        let half = build(&sys, 3.0, true);
+        verify_half_invariants(&full, &half);
+        // Full has 6 self-images (±a, ±b, ±c); half keeps +a, +b, +c.
+        assert_eq!(full.len(), 6);
+        assert_eq!(half.len(), 3);
+        let half_offsets: Vec<[i32; 3]> = half.iter().map(|n| n.offset).collect();
+        assert!(half_offsets.contains(&[1, 0, 0]));
+        assert!(half_offsets.contains(&[0, 1, 0]));
+        assert!(half_offsets.contains(&[0, 0, 1]));
+    }
+
+    // --- Case 3: full triclinic multi-atom ---
+    {
+        let cell = UnitCell::new(
+            Vector3::new(6.0, 0.0, 0.0),
+            Vector3::new(1.0, 5.0, 0.0),
+            Vector3::new(0.5, 1.0, 4.0),
+        )
+        .unwrap();
+        let sys = System {
+            pos: vec![
+                cell.get_cartesian(&Vector3::new(0.1, 0.1, 0.1)),
+                cell.get_cartesian(&Vector3::new(0.9, 0.9, 0.9)),
+                cell.get_cartesian(&Vector3::new(0.5, 0.2, 0.8)),
+                cell.get_cartesian(&Vector3::new(0.3, 0.7, 0.4)),
+            ],
+            cell,
+            pbc: [true, true, true],
+        };
+        let full = build(&sys, 4.0, false);
+        let half = build(&sys, 4.0, true);
+        verify_half_invariants(&full, &half);
+        assert!(!half.is_empty());
+    }
+
+    // --- Case 4: slab geometry (mixed PBC) ---
+    {
+        let sys = System {
+            pos: vec![
+                Vector3::new(0.5, 0.5, 5.0),
+                Vector3::new(3.0, 0.5, 5.0),
+                Vector3::new(0.5, 3.0, 5.0),
+            ],
+            cell: UnitCell::new(
+                Vector3::new(4.0, 0.0, 0.0),
+                Vector3::new(0.0, 4.0, 0.0),
+                Vector3::new(0.0, 0.0, 20.0),
+            )
+            .unwrap(),
+            pbc: [true, true, false],
+        };
+        let full = build(&sys, 3.0, false);
+        let half = build(&sys, 3.0, true);
+        verify_half_invariants(&full, &half);
+        assert!(!half.is_empty());
+    }
+
+    // --- Case 5: large cutoff forcing multi-image replicas (small cubic) ---
+    {
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)],
+            cell: UnitCell::new(
+                Vector3::new(4.0, 0.0, 0.0),
+                Vector3::new(0.0, 4.0, 0.0),
+                Vector3::new(0.0, 0.0, 4.0),
+            )
+            .unwrap(),
+            pbc: [true, true, true],
+        };
+        let full = build(&sys, 5.0, false);
+        let half = build(&sys, 5.0, true);
+        verify_half_invariants(&full, &half);
+    }
 }
 
 #[cfg(test)]
@@ -947,8 +1122,8 @@ mod tests {
             pbc: [true, true, true],
         };
         let cutoff = 4.0;
-        let naive_result = naive::build_neighbor_list(&sys, cutoff);
-        let cell_list_result = cell_list::build_neighbor_list(&sys, cutoff);
+        let naive_result = naive::build_neighbor_list(&sys, cutoff, false);
+        let cell_list_result = cell_list::build_neighbor_list(&sys, cutoff, false);
 
         let naive_sorted = sorted_neighbors(&naive_result);
         let cell_list_sorted = sorted_neighbors(&cell_list_result);
@@ -971,6 +1146,53 @@ mod tests {
         assert_eq!(
             naive_dists, cell_list_dists,
             "naive and cell_list produced different distances"
+        );
+    }
+
+    #[test]
+    fn test_naive_cell_list_half_consistency() {
+        // Same triclinic system as the full-list consistency test: verify that
+        // naive and cell_list produce identical half lists when invoked with
+        // `half = true`.
+        let cell = UnitCell::new(
+            Vector3::new(6.0, 0.0, 0.0),
+            Vector3::new(1.0, 5.0, 0.0),
+            Vector3::new(0.5, 1.0, 4.0),
+        )
+        .unwrap();
+        let sys = System {
+            pos: vec![
+                cell.get_cartesian(&Vector3::new(0.1, 0.1, 0.1)),
+                cell.get_cartesian(&Vector3::new(0.9, 0.9, 0.9)),
+                cell.get_cartesian(&Vector3::new(0.5, 0.2, 0.8)),
+                cell.get_cartesian(&Vector3::new(0.3, 0.7, 0.4)),
+            ],
+            cell,
+            pbc: [true, true, true],
+        };
+        let cutoff = 4.0;
+        let naive_half = naive::build_neighbor_list(&sys, cutoff, true);
+        let cell_list_half = cell_list::build_neighbor_list(&sys, cutoff, true);
+
+        assert_eq!(
+            sorted_neighbors(&naive_half),
+            sorted_neighbors(&cell_list_half),
+            "naive and cell_list produced different half neighbor lists"
+        );
+
+        let mut naive_dists: Vec<(usize, usize, [i32; 3], i64)> = naive_half
+            .iter()
+            .map(|n| (n.i, n.j, n.offset, (n.distance * 1e10).round() as i64))
+            .collect();
+        naive_dists.sort();
+        let mut cell_list_dists: Vec<(usize, usize, [i32; 3], i64)> = cell_list_half
+            .iter()
+            .map(|n| (n.i, n.j, n.offset, (n.distance * 1e10).round() as i64))
+            .collect();
+        cell_list_dists.sort();
+        assert_eq!(
+            naive_dists, cell_list_dists,
+            "naive and cell_list produced different half-list distances"
         );
     }
 }

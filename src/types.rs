@@ -151,6 +151,25 @@ pub struct Neighbor {
     pub distance: f64,
 }
 
+impl Neighbor {
+    /// Returns `true` if this pair is the canonical representative in a half neighbor list.
+    ///
+    /// A full neighbor list contains each physical pair twice — as `(i, j, offset)` and as
+    /// `(j, i, -offset)`. A half list keeps exactly one of the two per pair, selected as:
+    /// - for `i < j`: keep `(i, j, offset)`;
+    /// - for `i == j` (self-image): keep entries whose offset is lexicographically greater
+    ///   than `[0, 0, 0]` (i.e. `+a` over `-a`, `+b` over `-b`, etc.).
+    pub fn is_half_canonical(&self) -> bool {
+        is_half_canonical_pair(self.i, self.j, self.offset)
+    }
+}
+
+/// Raw version of [`Neighbor::is_half_canonical`], usable before a `Neighbor` is constructed.
+#[inline]
+pub(crate) fn is_half_canonical_pair(i: usize, j: usize, offset: [i32; 3]) -> bool {
+    i < j || (i == j && offset > [0, 0, 0])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

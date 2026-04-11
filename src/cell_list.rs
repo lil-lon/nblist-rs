@@ -1,6 +1,12 @@
-use crate::types::{Neighbor, System, UnitCell, Vector3};
+use crate::types::{Neighbor, System, UnitCell, Vector3, is_half_canonical_pair};
 
-pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
+/// Build a neighbor list within `cutoff` using fractional-space cell binning.
+///
+/// When `half` is `false`, each physical pair appears twice — as `(i, j, offset)`
+/// and `(j, i, -offset)`. When `half` is `true`, only one canonical representative
+/// per pair is returned (`i < j`, or for self-images `i == j` the lexicographically
+/// positive offset). See [`Neighbor::is_half_canonical`] for the exact rule.
+pub fn build_neighbor_list(system: &System, cutoff: f64, half: bool) -> Vec<Neighbor> {
     if cutoff == 0.0 {
         return Vec::new();
     }
@@ -77,6 +83,9 @@ pub fn build_neighbor_list(system: &System, cutoff: f64) -> Vec<Neighbor> {
                             for &i_idx in i_idxs {
                                 for &j_idx in j_idxs {
                                     if i_idx == j_idx && offset == [0, 0, 0] {
+                                        continue;
+                                    }
+                                    if half && !is_half_canonical_pair(i_idx, j_idx, offset) {
                                         continue;
                                     }
                                     let diff = wrapped[j_idx]
@@ -282,6 +291,11 @@ mod tests {
     #[test]
     fn isolated_atoms_outside_cell() {
         test_neighbors::test_isolated_atoms_outside_cell(super::build_neighbor_list);
+    }
+
+    #[test]
+    fn half_neighbor_list() {
+        test_neighbors::test_half_neighbor_list(super::build_neighbor_list);
     }
 
     // --- assign_to_bins tests (cell list specific) ---

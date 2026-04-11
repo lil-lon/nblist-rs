@@ -39,14 +39,18 @@ fn simple_cubic(n: usize, a: f64) -> System {
     }
 }
 
-fn bench(system: &System, cutoff: f64, method: fn(&System, f64) -> Vec<Neighbor>) -> (f64, f64) {
+fn bench(
+    system: &System,
+    cutoff: f64,
+    method: fn(&System, f64, bool) -> Vec<Neighbor>,
+) -> (f64, f64) {
     // Warmup
-    let _ = method(system, cutoff);
+    let _ = method(system, cutoff, false);
 
     let mut times = Vec::with_capacity(N_RUNS);
     for _ in 0..N_RUNS {
         let start = Instant::now();
-        let _ = method(system, cutoff);
+        let _ = method(system, cutoff, false);
         times.push(start.elapsed().as_secs_f64());
     }
     mean_std(&times)
