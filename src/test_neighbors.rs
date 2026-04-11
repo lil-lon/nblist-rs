@@ -918,6 +918,181 @@ pub fn test_isolated_atoms_outside_cell(build: BuildFn) {
     assert!((a_to_b[0].distance - 2.0).abs() < 1e-10);
 }
 
+/// Shared check: given a full and half list for the same system, verify that
+/// the half list is exactly the canonical half of the full list.
+fn verify_half_invariants(full: &[Neighbor], half: &[Neighbor]) {
+    // Every half entry must be canonical.
+    for n in half {
+        assert!(
+            n.is_half_canonical(),
+            "non-canonical entry in half list: (i={}, j={}, offset={:?})",
+            n.i,
+            n.j,
+            n.offset,
+        );
+    }
+
+    // In a full list, every physical pair appears twice, so the length must be even
+    // and the half list must be exactly half of it.
+    assert_eq!(full.len() % 2, 0, "full list length ({}) is odd", full.len());
+    assert_eq!(
+        half.len() * 2,
+        full.len(),
+        "half list length ({}) is not half of full ({})",
+        half.len(),
+        full.len(),
+    );
+
+    // The canonical entries extracted from the full list must match the half list exactly.
+    let mut expected: Vec<(usize, usize, [i32; 3])> = full
+        .iter()
+        .filter(|n| n.is_half_canonical())
+        .map(|n| (n.i, n.j, n.offset))
+        .collect();
+    expected.sort();
+    assert_eq!(
+        sorted_neighbors(half),
+        expected,
+        "half list does not match canonical entries of full list",
+    );
+
+    // Distances must match between full and half for each canonical pair.
+    for hn in half {
+        let fne = full
+            .iter()
+            .find(|fne| fne.i == hn.i && fne.j == hn.j && fne.offset == hn.offset)
+            .expect("half pair not found in full list");
+        assert!(
+            (fne.distance - hn.distance).abs() < 1e-12,
+            "distance mismatch for (i={}, j={}, offset={:?}): full={}, half={}",
+            hn.i,
+            hn.j,
+            hn.offset,
+            fne.distance,
+            hn.distance,
+        );
+    }
+}
+
+/// Comprehensive half-neighbor-list test suite. Runs `build_full` and `build_half`
+/// over several representative systems and verifies the half-list invariants.
+pub fn test_half_neighbor_list(build_full: BuildFn, build_half: BuildFn) {
+    // --- Case 1: small cubic system with cross-image pairs ---
+    {
+        let sys = System {
+            pos: vec![
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(2.0, 0.0, 0.0),
+                Vector3::new(5.0, 5.0, 5.0),
+                Vector3::new(8.0, 0.0, 0.0),
+            ],
+            cell: UnitCell::new(
+                Vector3::new(10.0, 0.0, 0.0),
+                Vector3::new(0.0, 10.0, 0.0),
+                Vector3::new(0.0, 0.0, 10.0),
+            )
+            .unwrap(),
+            pbc: [true, true, true],
+        };
+        let full = build_full(&sys, 3.0);
+        let half = build_half(&sys, 3.0);
+        verify_half_invariants(&full, &half);
+        // Full has (0,1),(1,0),(0,3),(3,0) = 4; half keeps (0,1) and (0,3).
+        assert_eq!(full.len(), 4);
+        assert_eq!(half.len(), 2);
+        let half_pairs: Vec<(usize, usize)> = half.iter().map(|n| (n.i, n.j)).collect();
+        assert!(half_pairs.contains(&(0, 1)));
+        assert!(half_pairs.contains(&(0, 3)));
+    }
+
+    // --- Case 2: single atom with face-adjacent self-images (cubic) ---
+    {
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0)],
+            cell: UnitCell::new(
+                Vector3::new(3.0, 0.0, 0.0),
+                Vector3::new(0.0, 3.0, 0.0),
+                Vector3::new(0.0, 0.0, 3.0),
+            )
+            .unwrap(),
+            pbc: [true, true, true],
+        };
+        let full = build_full(&sys, 3.0);
+        let half = build_half(&sys, 3.0);
+        verify_half_invariants(&full, &half);
+        // Full has 6 self-images (±a, ±b, ±c); half keeps +a, +b, +c.
+        assert_eq!(full.len(), 6);
+        assert_eq!(half.len(), 3);
+        let half_offsets: Vec<[i32; 3]> = half.iter().map(|n| n.offset).collect();
+        assert!(half_offsets.contains(&[1, 0, 0]));
+        assert!(half_offsets.contains(&[0, 1, 0]));
+        assert!(half_offsets.contains(&[0, 0, 1]));
+    }
+
+    // --- Case 3: full triclinic multi-atom ---
+    {
+        let cell = UnitCell::new(
+            Vector3::new(6.0, 0.0, 0.0),
+            Vector3::new(1.0, 5.0, 0.0),
+            Vector3::new(0.5, 1.0, 4.0),
+        )
+        .unwrap();
+        let sys = System {
+            pos: vec![
+                cell.get_cartesian(&Vector3::new(0.1, 0.1, 0.1)),
+                cell.get_cartesian(&Vector3::new(0.9, 0.9, 0.9)),
+                cell.get_cartesian(&Vector3::new(0.5, 0.2, 0.8)),
+                cell.get_cartesian(&Vector3::new(0.3, 0.7, 0.4)),
+            ],
+            cell,
+            pbc: [true, true, true],
+        };
+        let full = build_full(&sys, 4.0);
+        let half = build_half(&sys, 4.0);
+        verify_half_invariants(&full, &half);
+        assert!(!half.is_empty());
+    }
+
+    // --- Case 4: slab geometry (mixed PBC) ---
+    {
+        let sys = System {
+            pos: vec![
+                Vector3::new(0.5, 0.5, 5.0),
+                Vector3::new(3.0, 0.5, 5.0),
+                Vector3::new(0.5, 3.0, 5.0),
+            ],
+            cell: UnitCell::new(
+                Vector3::new(4.0, 0.0, 0.0),
+                Vector3::new(0.0, 4.0, 0.0),
+                Vector3::new(0.0, 0.0, 20.0),
+            )
+            .unwrap(),
+            pbc: [true, true, false],
+        };
+        let full = build_full(&sys, 3.0);
+        let half = build_half(&sys, 3.0);
+        verify_half_invariants(&full, &half);
+        assert!(!half.is_empty());
+    }
+
+    // --- Case 5: large cutoff forcing multi-image replicas (small cubic) ---
+    {
+        let sys = System {
+            pos: vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)],
+            cell: UnitCell::new(
+                Vector3::new(4.0, 0.0, 0.0),
+                Vector3::new(0.0, 4.0, 0.0),
+                Vector3::new(0.0, 0.0, 4.0),
+            )
+            .unwrap(),
+            pbc: [true, true, true],
+        };
+        let full = build_full(&sys, 5.0);
+        let half = build_half(&sys, 5.0);
+        verify_half_invariants(&full, &half);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cell_list;
@@ -971,6 +1146,53 @@ mod tests {
         assert_eq!(
             naive_dists, cell_list_dists,
             "naive and cell_list produced different distances"
+        );
+    }
+
+    #[test]
+    fn test_naive_cell_list_half_consistency() {
+        // Same triclinic system as the full-list consistency test: verify that
+        // naive::build_half_neighbor_list and cell_list::build_half_neighbor_list
+        // produce identical half lists.
+        let cell = UnitCell::new(
+            Vector3::new(6.0, 0.0, 0.0),
+            Vector3::new(1.0, 5.0, 0.0),
+            Vector3::new(0.5, 1.0, 4.0),
+        )
+        .unwrap();
+        let sys = System {
+            pos: vec![
+                cell.get_cartesian(&Vector3::new(0.1, 0.1, 0.1)),
+                cell.get_cartesian(&Vector3::new(0.9, 0.9, 0.9)),
+                cell.get_cartesian(&Vector3::new(0.5, 0.2, 0.8)),
+                cell.get_cartesian(&Vector3::new(0.3, 0.7, 0.4)),
+            ],
+            cell,
+            pbc: [true, true, true],
+        };
+        let cutoff = 4.0;
+        let naive_half = naive::build_half_neighbor_list(&sys, cutoff);
+        let cell_list_half = cell_list::build_half_neighbor_list(&sys, cutoff);
+
+        assert_eq!(
+            sorted_neighbors(&naive_half),
+            sorted_neighbors(&cell_list_half),
+            "naive and cell_list produced different half neighbor lists"
+        );
+
+        let mut naive_dists: Vec<(usize, usize, [i32; 3], i64)> = naive_half
+            .iter()
+            .map(|n| (n.i, n.j, n.offset, (n.distance * 1e10).round() as i64))
+            .collect();
+        naive_dists.sort();
+        let mut cell_list_dists: Vec<(usize, usize, [i32; 3], i64)> = cell_list_half
+            .iter()
+            .map(|n| (n.i, n.j, n.offset, (n.distance * 1e10).round() as i64))
+            .collect();
+        cell_list_dists.sort();
+        assert_eq!(
+            naive_dists, cell_list_dists,
+            "naive and cell_list produced different half-list distances"
         );
     }
 }
