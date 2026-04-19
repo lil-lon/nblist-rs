@@ -148,6 +148,9 @@ pub struct Neighbor {
     pub i: usize,
     pub j: usize,
     pub offset: [i32; 3],
+    /// Cartesian displacement from atom `i` to atom `j` (with periodic image
+    /// offset applied), i.e. `r_j + offset·H − r_i`. `distance == dr.norm()`.
+    pub dr: Vector3,
     pub distance: f64,
 }
 

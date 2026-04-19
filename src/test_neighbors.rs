@@ -971,6 +971,30 @@ fn verify_half_invariants(full: &[Neighbor], half: &[Neighbor]) {
             fne.distance,
             hn.distance,
         );
+        assert!(
+            (fne.dr.x - hn.dr.x).abs() < 1e-12
+                && (fne.dr.y - hn.dr.y).abs() < 1e-12
+                && (fne.dr.z - hn.dr.z).abs() < 1e-12,
+            "dr mismatch for (i={}, j={}, offset={:?}): full={:?}, half={:?}",
+            hn.i,
+            hn.j,
+            hn.offset,
+            fne.dr,
+            hn.dr,
+        );
+    }
+
+    // dr.norm() must equal distance for every entry.
+    for n in full.iter().chain(half.iter()) {
+        assert!(
+            (n.dr.norm() - n.distance).abs() < 1e-10,
+            "dr.norm() ({}) != distance ({}) for (i={}, j={}, offset={:?})",
+            n.dr.norm(),
+            n.distance,
+            n.i,
+            n.j,
+            n.offset,
+        );
     }
 }
 
@@ -1097,7 +1121,7 @@ pub fn test_half_neighbor_list(build: BuildFn) {
 mod tests {
     use crate::cell_list;
     use crate::naive;
-    use crate::types::{System, UnitCell, Vector3};
+    use crate::types::{Neighbor, System, UnitCell, Vector3};
 
     use super::sorted_neighbors;
 
@@ -1147,6 +1171,25 @@ mod tests {
             naive_dists, cell_list_dists,
             "naive and cell_list produced different distances"
         );
+
+        // Verify dr agrees between naive and cell_list, and matches distance.
+        let key = |n: &Neighbor| -> (usize, usize, [i32; 3]) { (n.i, n.j, n.offset) };
+        for nn in &naive_result {
+            let cn = cell_list_result
+                .iter()
+                .find(|c| key(c) == key(nn))
+                .expect("naive pair missing in cell_list");
+            assert!(
+                (nn.dr.x - cn.dr.x).abs() < 1e-10
+                    && (nn.dr.y - cn.dr.y).abs() < 1e-10
+                    && (nn.dr.z - cn.dr.z).abs() < 1e-10,
+                "dr mismatch for {:?}: naive={:?}, cell_list={:?}",
+                key(nn),
+                nn.dr,
+                cn.dr,
+            );
+            assert!((nn.dr.norm() - nn.distance).abs() < 1e-10);
+        }
     }
 
     #[test]
