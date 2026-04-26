@@ -95,12 +95,14 @@ pub fn build_neighbor_list(system: &System, cutoff: f64, half: bool) -> Vec<Neig
                                             offset[2] as f64,
                                         )
                                         - wrapped[i_idx];
-                                    let distance = system.cell.get_cartesian(&diff).norm();
+                                    let dr = system.cell.get_cartesian(&diff);
+                                    let distance = dr.norm();
                                     if distance <= cutoff {
                                         result.push(Neighbor {
                                             i: i_idx,
                                             j: j_idx,
                                             offset,
+                                            dr,
                                             distance,
                                         })
                                     }

@@ -69,12 +69,14 @@ pub fn build_neighbor_list(system: &System, cutoff: f64, half: bool) -> Vec<Neig
                             + system.cell.a * a_ind as f64
                             + system.cell.b * b_ind as f64
                             + system.cell.c * c_ind as f64;
-                        let distance = (pos_j - wrapped[i]).norm();
+                        let dr = pos_j - wrapped[i];
+                        let distance = dr.norm();
                         if distance <= cutoff {
                             result.push(Neighbor {
                                 i,
                                 j,
                                 offset,
+                                dr,
                                 distance,
                             })
                         }
