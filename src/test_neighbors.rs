@@ -934,7 +934,12 @@ fn verify_half_invariants(full: &[Neighbor], half: &[Neighbor]) {
 
     // In a full list, every physical pair appears twice, so the length must be even
     // and the half list must be exactly half of it.
-    assert_eq!(full.len() % 2, 0, "full list length ({}) is odd", full.len());
+    assert_eq!(
+        full.len() % 2,
+        0,
+        "full list length ({}) is odd",
+        full.len()
+    );
     assert_eq!(
         half.len() * 2,
         full.len(),

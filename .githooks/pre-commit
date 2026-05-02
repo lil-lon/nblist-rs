@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# set up by executing `git config core.hooksPath .githooks`
+
 set -euo pipefail
 
 echo "=== Pre-commit checks ==="
@@ -26,6 +28,6 @@ cargo clippy -- -D warnings || {
 
 # 4. gitleaks
 echo "[4/4] gitleaks"
-gitleaks git --staged --verbose
+gitleaks git --pre-commit --redact --staged --verbose
 
 echo "=== All checks passed ==="
